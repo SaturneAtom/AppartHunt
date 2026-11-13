@@ -45,9 +45,14 @@ def code_leboncoin(nom: str) -> str | None:
 
 def note_lieu(city: str, district: str | None) -> float:
     """Note du lieu de 0 à 10 : le premier quartier noté qui correspond, sinon la commune, sinon 5."""
-    text = f"{city} {district or ''}"
+    text = f"{city} {district or ''}"[:200]          # texte venu d'une annonce : borné
     for q in load()["quartiers"]:
-        if q.get("note") is not None and re.search(q["motif"], text, re.I):
-            return q["note"]
+        if q.get("note") is None:
+            continue
+        try:
+            if re.search(q["motif"], text, re.I):
+                return q["note"]
+        except re.error as e:
+            raise ValueError(f"zone.json : motif invalide « {q['motif']} » ({e})") from None
     c = commune(city or "")
     return c["note"] if c and c.get("note") is not None else 5

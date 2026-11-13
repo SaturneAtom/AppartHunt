@@ -9,7 +9,13 @@ const { enrich } = require("./enrich");
 const DONNEES = path.join(__dirname, "donnees.py");
 const LBC = h => `https://img.leboncoin.fr/api/v1/lbcpb1/images/${h.slice(0, 2)}/${h.slice(2, 4)}/${h.slice(4, 6)}/${h}.jpg?rule=ad-large`;
 
-const lot = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+// un .json du dossier de recherche, ou le lot temporaire de la veille : rien d'autre
+const os = require("os");
+const WS = path.resolve(process.env.APPARTHUNT_WORKSPACE || path.join(__dirname, "..", "ma-recherche"));
+const fichier = fs.realpathSync(path.resolve(process.argv[2] || ""));
+const dansWs = fichier.startsWith(fs.realpathSync(WS) + path.sep), lotVeille = path.dirname(fichier) === fs.realpathSync(os.tmpdir()) && path.basename(fichier).startsWith("apparthunt-");
+if (!fichier.endsWith(".json") || !(dansWs || lotVeille)) { console.error("Fichier refusé : " + fichier + " (seulement un .json du dossier de recherche)"); process.exit(1); }
+const lot = JSON.parse(fs.readFileSync(fichier, "utf8"));
 const A = JSON.parse(execFileSync("python3", [DONNEES, "snapshot"], { encoding: "utf8", maxBuffer: 64 << 20 })).listings;
 const known = new Set(A.map(a => a.u));
 const now = new Date().toISOString().slice(0, 16);

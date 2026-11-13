@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS approvals (
 
 def connect() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(DB_PATH, timeout=15)    # l'appli, la veille et l'agent écrivent en même temps : on attend son tour
+    con.execute("PRAGMA journal_mode=WAL")
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
     return con
@@ -53,8 +54,11 @@ def upsert_listing(con: sqlite3.Connection, ad: dict) -> bool:
             "furnished", "dpe", "parking", "outdoor", "description", "photos", "lat", "lng"]
     values = [json.dumps(ad.get(c)) if c == "photos" else ad.get(c) for c in cols]
     if known:
-        sets = ", ".join(f"{c} = ?" for c in cols[1:])
-        con.execute(f"UPDATE listings SET {sets}, last_seen = ? WHERE id = ?", values[1:] + [now, ad["id"]])
+        # seulement les champs fournis : réenregistrer une annonce sans sa description ne l'efface pas
+        donnes = [c for c in cols[1:] if ad.get(c) not in (None, [], "")]
+        sets = "".join(f"{c} = ?, " for c in donnes)   # noms de colonnes tirés de la liste fixe ci-dessus
+        con.execute(f"UPDATE listings SET {sets}last_seen = ? WHERE id = ?",
+                    [values[cols.index(c)] for c in donnes] + [now, ad["id"]])
     else:
         con.execute(
             f"INSERT INTO listings ({', '.join(cols)}, first_seen, last_seen) VALUES ({', '.join('?' * len(cols))}, ?, ?)",

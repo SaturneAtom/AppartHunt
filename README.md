@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/SaturneAtom/AppartHunt/actions/workflows/tests.yml"><img src="https://github.com/SaturneAtom/AppartHunt/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <img src="https://img.shields.io/badge/Brain-Claude%20Code-d97757" alt="Claude Code">
   <img src="https://img.shields.io/badge/Python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/Electron-45-47848f" alt="Electron 45">
@@ -69,6 +70,18 @@ Some of these are enforced by code, others are only instructions given to the AI
 | The windows only open web pages: no `file://`, no other protocols | |
 | A message you send is never lost | Never send, pay or type a password |
 
+## Security
+
+The agent reads text written by strangers and uses your logins, so security got as much work as the features. In short:
+
+- **It can't act on your machine without you.** Without asking, it only runs the project's own tools inside your search folder. Any other command, any edit to the app's code and any web fetch shows an approval card with the exact command or the exact text to be written.
+- **Your tenant file is off limits to the agent**, even in developer mode.
+- **Listing text is data, never markup or instructions.** Booby-trapped listings (scripts, HTML, `smb://` links, style breakouts) are part of the test suite.
+- **Windows only open web pages**, and nothing is handed to the operating system.
+- **Every push runs the tests and a dependency audit** on GitHub.
+
+Two independent audits were run on this code; everything they found is fixed and covered by tests. The threat model, the full list of protections and what is **not** covered are in [SECURITY.md](SECURITY.md).
+
 ## Project status
 
 A personal project, used for real. Not a finished product.
@@ -85,8 +98,9 @@ A personal project, used for real. Not a finished product.
 
 **Tests** (none of them calls the AI unless stated):
 
-- [`tests/test_outils.py`](tests/test_outils.py): every command-line tool end to end on a throwaway search folder (scoring, duplicate applications refused, hostile text stored as-is, broken settings rejected).
+- [`tests/test_outils.py`](tests/test_outils.py): every command-line tool end to end on a throwaway search folder: scoring, duplicate applications refused (even six at once), hostile text stored as-is, invalid ids and files outside the folder refused, the agent's no-prompt permissions kept narrow. 17 tests.
 - [`app/tests/securite.test.py`](app/tests/securite.test.py): booby-trapped listings (HTML, scripts, style breakouts, `smb://` links) against the real UI and the shareable page. 19 checks.
+- All of the above run on GitHub on every push, with an `npm audit` of the desktop app.
 - [`app/tests/ecran.test.py`](app/tests/ecran.test.py): the real UI with fake data, 30 checks.
 - [`app/tests/taches.test.js`](app/tests/taches.test.js) checks conversations with real calls to a small model.
 

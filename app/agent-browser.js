@@ -195,6 +195,7 @@ async function extract(workspace, repo) {
   if (/leboncoin\.fr\/ad\//.test(u)) {
     const src = fs.readFileSync(path.join(repo, "tools", "extract", "leboncoin.js"), "utf8");
     const fiche = JSON.parse(await w.webContents.executeJavaScript(src));
+    fiche.u = u;                    // la page ne choisit pas sur quelle annonce elle écrit
     saveFiche(workspace, fiche);
     return { url: fiche.u, photos: fiche.photos.length, details: fiche.details, description: fiche.description };
   }
@@ -313,7 +314,7 @@ function startMcp(ctx) {
     if (req.headers.authorization !== "Bearer " + token) { res.writeHead(401).end(); return; }
     if (req.method !== "POST") { res.writeHead(405).end(); return; }
     let body = "";
-    req.on("data", d => (body += d));
+    req.on("data", d => { body += d; if (body.length > 2e6) req.destroy(); });   // 2 Mo au plus
     req.on("end", async () => {
       let msg; try { msg = JSON.parse(body); } catch { res.writeHead(400).end(); return; }
       if (msg.id === undefined) { res.writeHead(202).end(); return; }      // notification

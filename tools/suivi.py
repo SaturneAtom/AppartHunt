@@ -61,6 +61,7 @@ def cmd_choix(con, a):
 
 
 def cmd_candidature(con, a):
+    con.execute("BEGIN IMMEDIATE")   # lecture et écriture d'un seul tenant : deux envois en même temps ne passent pas tous les deux
     e = etat(con, a.url)
     avant = e.get("candidature")
     if a.etat in ("envoyee", "preparee") and (avant in PARTIE or e.get("envoyee_le")):

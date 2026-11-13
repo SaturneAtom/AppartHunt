@@ -67,6 +67,38 @@ class Outils(unittest.TestCase):
         r = subprocess.run(["./al", "tool", "rm_rf", "{}"], cwd=ROOT, env=self.env, capture_output=True, text=True)
         self.assertNotEqual(r.returncode, 0)
 
+    def test_05_mise_a_jour_partielle_sans_perte(self):
+        self.al("save_listings", {"listings": [{"id": "leboncoin:1", "price": "780 €"}]})
+        s = self.al("score_listing", {"listing_id": "leboncoin:1"})
+        self.assertNotIn("erreur", s, "un prix écrit « 780 € » est lu comme un nombre")
+        r = json.loads(self.run_(PY, "-c", "import sqlite3,os,json;c=sqlite3.connect(os.environ['APPARTHUNT_WORKSPACE']+'/agent/data/agent.db');"
+                                 "print(json.dumps(c.execute(\"SELECT price, description, city FROM listings WHERE id='leboncoin:1'\").fetchone()))"))
+        self.assertEqual(r[0], 780); self.assertEqual(r[1], "Cuisine équipée."); self.assertEqual(r[2], "Bordeaux")
+
+    def test_06_identifiants_et_parametres_valides(self):
+        r = self.al("save_listings", {"listings": [{"id": "leboncoin:../../compte", "title": "x"}, {"id": "seloger:1"}]})
+        self.assertEqual(r["nouvelles"], [], "un identifiant qui n'est pas leboncoin:<numéro> est ignoré")
+        self.assertIn("erreur", self.al("read_listing", {"listing_id": "leboncoin:../../compte"}))
+        self.assertIn("erreur", self.al("like_listing", {"listing_id": "leboncoin:1?x=y"}))
+        self.assertIn("erreur", self.al("search_listings", {"cities": ["Bordeaux"], "max_price": "1000&x=y"}))
+
+    def test_07_fichier_de_parametres_hors_du_projet_refuse(self):
+        secret = pathlib.Path(tempfile.mkdtemp()) / "secret.json"
+        secret.write_text('{"note": "secret"}', encoding="utf-8")
+        r = subprocess.run(["./al", "tool", "remember", "@" + str(secret)], cwd=ROOT, env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0); self.assertIn("refusé", r.stdout + r.stderr)
+        dedans = self.ws / "lot.json"; dedans.write_text('{"note": "depuis un fichier"}', encoding="utf-8")
+        self.run_("./al", "tool", "remember", "@" + str(dedans), "--run", "test")
+        shutil.rmtree(secret.parent)
+
+    def test_08_deux_candidatures_au_meme_instant(self):
+        u = "https://example.org/annonce/course"
+        procs = [subprocess.Popen([PY, "tools/suivi.py", "candidature", u, "envoyee"], cwd=ROOT, env=self.env,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(6)]
+        codes = sorted(p.wait(timeout=60) for p in procs)
+        self.assertEqual(codes.count(0), 1, f"une seule passe, les autres sont arrêtées (codes : {codes})")
+        self.assertEqual(codes.count(2), 5)
+
     # ---------- données de l'appli ----------
     def test_10_fiche_snapshot_ordre_journal(self):
         u = "https://example.org/annonce/42"
@@ -122,6 +154,19 @@ class Outils(unittest.TestCase):
             self.assertNotEqual(r.returncode, 0, "un zone.json cassé doit donner une erreur, pas une note inventée")
         finally:
             shutil.copy(ROOT / "examples" / "zone.example.json", self.ws / "zone.json")
+
+    # ---------- permissions de l'agent ----------
+    def test_35_permissions_sans_demande_restent_etroites(self):
+        import re
+        src = (ROOT / "app" / "main.js").read_text(encoding="utf-8")
+        outils = re.search(r"const OUTILS = \[(.*?)\];", src, re.S).group(1)
+        cmds = re.findall(r'"([^"]+)"', outils)
+        for c in cmds:
+            self.assertRegex(c, r"^(\./al|python3 tools/[a-z0-9_]+\.py|node tools/[a-z]+\.js)$", f"commande trop large sans demande : {c}")
+        sur = re.search(r"const ALLOWED_SUR = \[(.*?)\];", src, re.S).group(1)
+        for interdit in ['"Read"', '"Edit"', '"Write"', '"WebFetch"', "mcp__claude-in-chrome__*", "file_upload", "javascript_tool", "form_input"]:
+            self.assertNotIn(interdit, sur, f"{interdit} ne doit pas passer sans demande")
+        self.assertIn("dossier\", \"pieces", src.replace("'", '"'), "les pièces du dossier locataire sont interdites à l'agent")
 
     # ---------- veille ----------
     def test_40_veille_tri(self):

@@ -920,6 +920,7 @@ window.apparthunt.onQuestion(q => {
   const card = document.createElement("div"); card.className = "ask";
   card.innerHTML = `<p>${esc(q.question)}</p><div class="btns">${q.reponses.map(r => `<button type="button">${esc(r)}</button>`).join("")}</div><p class="hint2">Ou écris ta réponse.</p>`;
   turn.appendChild(card);
+  card.dataset.q = String(q.id);
   asking = { id: q.id, card };
   $("stateS").textContent = "Il te pose une question, réponds en bas.";
   if (runChat === activeChat) $("stateS").textContent = "J'attends ta réponse";
@@ -934,13 +935,17 @@ function reply(text) {
 window.apparthunt.onProposition((chat, p) => {
   if (!turn || chat !== runChat) return;
   const card = document.createElement("div"); card.className = "prop";
-  card.innerHTML = `<p>${esc(p.texte)}</p><div class="btns">${(p.boutons || []).slice(0, 3).map(b => `<button type="button" data-send="${esc(b.message)}">${esc(b.label)}</button>`).join("")}</div>`;
+  card.innerHTML = `<p>${esc(p.texte)}</p><div class="btns">${(p.boutons || []).slice(0, 3).map(b => `<button type="button" data-send="${esc(b.message)}">${esc(b.label)}${String(b.message || "").trim() !== String(b.label || "").trim() ? `<small class="envoie">envoie : « ${esc(b.message)} »</small>` : ""}</button>`).join("")}</div>`;
   turn.appendChild(card); scroll();
 });
 // délégué sur la conversation : marche aussi pour les cartes d'une conversation rouverte
 $("talk").addEventListener("click", e => {
   const b = e.target.closest(".ask:not(.done) .btns button, .prop:not(.done) button[data-send]"); if (!b) return;
-  if (b.closest(".ask")) return asking && reply(b.textContent);
+  if (b.closest(".ask")) {
+    const c = b.closest(".ask");
+    if (asking && String(asking.id) === c.dataset.q) return reply(b.textContent);
+    c.classList.add("done"); return window.apparthunt.answer(+c.dataset.q, b.textContent);   // une ancienne carte répond à sa propre question, jamais à une autre
+  }
   b.closest(".prop").classList.add("done"); b.classList.add("on");
   send(b.dataset.send);
 });

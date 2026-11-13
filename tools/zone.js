@@ -24,8 +24,16 @@ const codesLeboncoin = (z, cercle) => communes(z, cercle).filter(c => c.cp).map(
 const zonesBienici = z => z.communes.filter(c => c.bienici).map(c => c.bienici);
 
 // Position approchée d'un lieu (« Commune — Quartier ») : le premier quartier placé qui correspond, sinon la commune
+// Un motif invalide dans zone.json est ignoré (et signalé une fois) au lieu de tout arrêter
+const motifs = new Map();
+function motif(q) {
+  if (!motifs.has(q.motif)) { try { motifs.set(q.motif, new RegExp(q.motif, "i")); } catch (e) { console.error("[zone] motif invalide :", q.motif); motifs.set(q.motif, /$^/); } }
+  return motifs.get(q.motif);
+}
+
 function locate(z, text) {
-  for (const q of z.quartiers) if (q.lat != null && new RegExp(q.motif, "i").test(text)) return { city: q.commune || "Autre", lat: q.lat, lng: q.lng };
+  text = String(text || "").slice(0, 200);          // texte venu d'une annonce : borné
+  for (const q of z.quartiers) if (q.lat != null && motif(q).test(text)) return { city: q.commune || "Autre", lat: q.lat, lng: q.lng };
   const t = plain(text);
   const c = [...z.communes].sort((a, b) => b.nom.length - a.nom.length).find(c => c.lat != null && t.includes(plain(c.nom)));
   return c ? { city: c.nom, lat: c.lat, lng: c.lng } : { city: "Autre", lat: z.centre?.[0] ?? null, lng: z.centre?.[1] ?? null };

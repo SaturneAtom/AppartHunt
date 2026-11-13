@@ -66,7 +66,8 @@ def norm(url: str) -> str:
 
 def connect() -> sqlite3.Connection:
     DB.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB)
+    con = sqlite3.connect(DB, timeout=15)   # l'appli, la veille et l'agent écrivent en même temps : on attend son tour
+    con.execute("PRAGMA journal_mode=WAL")
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
     return con

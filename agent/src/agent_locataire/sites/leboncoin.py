@@ -13,6 +13,13 @@ from ..browser import refuse_cookies
 NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
 
 
+def _m2(v):
+    try:
+        return float(str(v).split()[0].replace(",", ".")) or None
+    except (IndexError, ValueError):
+        return None
+
+
 def _attrs(ad: dict) -> dict:
     return {a["key"]: a.get("value_label") or a.get("value") for a in ad.get("attributes", [])}
 
@@ -28,7 +35,7 @@ def _to_listing(ad: dict, body: str = "", photos: list[str] | None = None) -> di
         "url": f"https://www.leboncoin.fr/ad/locations/{ad['list_id']}",
         "title": ad.get("subject", ""),
         "price": (ad.get("price") or [None])[0],
-        "m2": float(str(at.get("square", "0")).split()[0].replace(",", ".") or 0) or None,
+        "m2": _m2(at.get("square")),
         "rooms": int(at["rooms"]) if str(at.get("rooms", "")).isdigit() else None,
         "city": ad.get("location", {}).get("city"),
         "district": ad.get("location", {}).get("district"),
@@ -82,6 +89,8 @@ def details(ctx, list_id: str) -> dict:
         page.goto(f"https://www.leboncoin.fr/ad/locations/{list_id}", wait_until="domcontentloaded")
         refuse_cookies(page)
         m = NEXT_DATA.search(page.content())
+        if not m:
+            raise RuntimeError("Leboncoin n'a pas renvoyé l'annonce (vérification anti-robot ? ouvre la fenêtre et résous-la toi-même).")
         ad = json.loads(m.group(1))["props"]["pageProps"]["ad"]
         photos = (ad.get("images", {}).get("urls_large") or [])[:8]
         return _to_listing(ad, body=ad.get("body", ""), photos=photos)

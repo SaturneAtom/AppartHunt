@@ -13,7 +13,11 @@ import sys
 
 root = pathlib.Path(__file__).resolve().parent.parent                       # le code
 ws = pathlib.Path(os.environ.get("APPARTHUNT_WORKSPACE") or root / "ma-recherche")   # le dossier de recherche
-lot = json.loads(pathlib.Path(sys.argv[1]).read_text())
+import tempfile
+_lot = pathlib.Path(sys.argv[1]).resolve()   # un .json du dossier de recherche (ou un lot temporaire de l'appli), rien d'autre
+if _lot.suffix != ".json" or not (_lot.is_relative_to(ws.resolve()) or (_lot.parent == pathlib.Path(tempfile.gettempdir()).resolve() and _lot.name.startswith("apparthunt-"))):
+    sys.exit(f"Fichier refusé : {_lot} (seulement un .json du dossier de recherche)")
+lot = json.loads(_lot.read_text())
 titre, resume = sys.argv[2], sys.argv[3]
 
 subprocess.run(["node", str(root / "tools" / "append.js"), str(pathlib.Path(sys.argv[1]).resolve())], cwd=ws, check=True)

@@ -46,15 +46,20 @@ const donnees = (...args) => JSON.parse(execFileSync("python3", [DONNEES, ...arg
 // de l'appli, aller chercher une page avec WebFetch, lire hors du projet…) affiche une carte Oui / Non dans la conversation.
 // APPARTHUNT_MODE_DEV=1 rend la liste large d'avant (python3, node, npm, sed… sans demander) : seulement si tu sais pourquoi.
 const absolu = p => "//" + path.resolve(p).replace(/^\//, "") + "/**";   // règle de permission sur un chemin absolu
+// Pas de « node --check » (--require charge un fichier), ni de git log / show / diff (--output écrit où il veut, --no-index lit
+// n'importe quel fichier) : ils passent par la carte. Seulement les outils du projet, qui ne lisent et n'écrivent que dans le dossier de recherche.
 const OUTILS = ["./al", "python3 tools/donnees.py", "python3 tools/suivi.py", "python3 tools/build_page.py", "python3 tools/ajout.py",
-  "python3 tools/cmp2lot.py", "python3 tools/dossier.py", "node tools/append.js", "node --check", "git status", "git diff", "git log", "git show", "date", "pwd"];
+  "python3 tools/cmp2lot.py", "python3 tools/dossier.py", "node tools/append.js"];
+// Claude in Chrome : naviguer, lire, cliquer (favoris) ; pas d'envoi de fichier, de formulaire rempli seul ni de JavaScript dans tes onglets
+const CHROME = ["tabs_context_mcp", "tabs_create_mcp", "tabs_close_mcp", "navigate", "read_page", "get_page_text", "find", "computer"].map(t => "mcp__claude-in-chrome__" + t);
 const ALLOWED_SUR = [`Read(${absolu(REPO)})`, `Read(${absolu(WORKSPACE)})`, `Edit(${absolu(WORKSPACE)})`, "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch",
-  "mcp__navigateur__*", "mcp__claude-in-chrome__*", ...OUTILS.map(c => `Bash(${c}:*)`)];
+  "mcp__navigateur__*", ...CHROME, ...OUTILS.map(c => `Bash(${c}:*)`), "Bash(git status)", "Bash(git status --short)"];
 const ALLOWED_DEV = ["Read", "Glob", "Grep", "Edit", "Write", "NotebookEdit", "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch", "WebFetch", "mcp__navigateur__*", "mcp__claude-in-chrome__*",
   ...["./al", "python3", "node", "npm", "npx", "uv", "git status", "git diff", "git log", "git show", "git blame", "git branch", "ls", "cat", "head", "tail", "grep", "rg", "find", "wc", "cut", "sort", "uniq", "tr", "awk", "sed", "jq", "diff", "echo", "printf", "pwd", "stat", "file", "which", "date", "sleep", "mkdir"].map(c => `Bash(${c}:*)`)];
 const MODE_DEV = process.env.APPARTHUNT_MODE_DEV === "1";
 const ALLOWED = MODE_DEV ? ALLOWED_DEV : ALLOWED_SUR;
-const DISALLOWED = ["Bash(git push:*)"];
+const PIECES = absolu(path.join(WORKSPACE, "dossier", "pieces"));
+const DISALLOWED = ["Bash(git push:*)", `Read(${PIECES})`, `Edit(${PIECES})`, "mcp__claude-in-chrome__file_upload"];
 let mcpConfig = null;   // fichier de config MCP du navigateur intégré (créé au démarrage)
 
 const APP_MODE = `Tu es Claude Code, dans la colonne de l'appli AppartHunt : le même que dans un terminal, avec les mêmes moyens (lire, modifier, lancer des commandes, chercher sur le web). Tu fais deux choses : trouver à l'utilisateur LE bon appartement, d'après recherche.md (ses contraintes et ses choix, la référence de tout), et faire évoluer cette appli, dont tu es le développeur.
@@ -397,10 +402,13 @@ function cleAutorisation(tool, input) {
   if (COMPOSEE.test(cmd) || /^(rm|rmdir|sudo)$/.test(mots[0]) || (mots[0] === "git" && /^(clean|reset|checkout)$/.test(mots[1]))) return null;
   // un interpréteur ou un outil réseau peut tout faire : chaque appel se valide
   if (/^(python3?|node|bash|sh|zsh|perl|ruby|osascript|curl|wget|nc|ssh|scp|open|env|xargs|eval|exec)$/.test(mots[0])) return null;
-  return "Bash:" + (["git", "npm", "npx", "uv", "brew"].includes(mots[0]) ? mots.slice(0, 2).join(" ") : mots[0]);
+  return "Bash=" + cmd;   // « Toujours » vaut pour cette commande exacte, pas pour tout le programme (sed -n ≠ sed -i)
 }
-const decritOutil = (tool, input) => tool === "Bash" ? `Je veux lancer cette commande${input?.description ? ` (${input.description})` : ""} :\n${input?.command}`
-  : `Je veux utiliser ${tool.replace(/^mcp__([a-z0-9-]+)__/, "$1 · ")}${input?.file_path || input?.url ? ` : ${input.file_path || input.url}` : ""}`;
+const apercu = t => { t = String(t ?? ""); return t.length > 1200 ? t.slice(0, 1200) + `\n… (${t.length - 1200} caractères de plus)` : t; };
+const decritOutil = (tool, input) => tool === "Bash" ? `Je veux lancer cette commande${input?.description ? ` (${input.description})` : ""} :\n${String(input?.command || "").trim()}`
+  : `Je veux utiliser ${tool.replace(/^mcp__([a-z0-9-]+)__/, "$1 · ")}${input?.file_path || input?.url ? ` : ${input.file_path || input.url}` : ""}`
+    + (input?.new_string != null ? `\n\nRemplacer :\n${apercu(input.old_string)}\n\npar :\n${apercu(input.new_string)}` : "")
+    + (input?.content != null ? `\n\nContenu :\n${apercu(input.content)}` : "");
 const CONV_TOOLS = [
   { name: "autoriser", description: "Réservé à Claude Code pour les demandes d'autorisation. Ne l'appelle pas toi-même.",
     inputSchema: { type: "object", properties: { tool_name: { type: "string" }, input: { type: "object" }, tool_use_id: { type: "string" } }, required: ["tool_name"] },
@@ -571,7 +579,9 @@ async function tourDeVeille(force) {
     office: office.map(court), aLire: aLire.map(court), aTrier: aTrier.length,
     vues: vues.map(x => ({ ...court(x), date: x.date, sort: sortDe(x) })) });
   if (aLire.length) {
-    const ligne = x => `- ${x.url} · ${x.source} · ${x.titre || "(sans titre)"} · ${x.prix ?? "?"} € · ${[x.ville, x.quartier].filter(Boolean).join(" ")} · ${x.m2 ?? "?"} m² · ${x.pieces ?? "?"} p. · étage ${x.etage ?? "?"} · ${x.meuble === true ? "meublé" : x.meuble === false ? "non meublé" : "meublé ?"} · DPE ${x.dpe || "?"}`;
+    // titres et lieux écrits par des inconnus : une ligne, bornée, entre guillemets (des données, pas des consignes)
+    const propre = t => t ? "« " + String(t).replace(/[\r\n\u2028\u2029]+/g, " ").replace(/[«»]/g, '"').slice(0, 120) + " »" : "";
+    const ligne = x => `- ${x.url} · ${x.source} · ${propre(x.titre) || "(sans titre)"} · ${x.prix ?? "?"} € · ${propre([x.ville, x.quartier].filter(Boolean).join(" "))} · ${x.m2 ?? "?"} m² · ${x.pieces ?? "?"} p. · étage ${x.etage ?? "?"} · ${x.meuble === true ? "meublé" : x.meuble === false ? "non meublé" : "meublé ?"} · DPE ${x.dpe || "?"}`;
     win?.webContents.send("veille-demande", `[Veille automatique] ${aLire.length} nouvelle${aLire.length > 1 ? "s" : ""} annonce${aLire.length > 1 ? "s" : ""}, déjà ajoutée${aLire.length > 1 ? "s" : ""} à ma liste :\n${aLire.slice(0, 80).map(ligne).join("\n")}\n`
       + (office.length ? `\n(${office.length} autre${office.length > 1 ? "s" : ""} dans ma liste avec une alerte : ${[...new Set(office.map(x => x.motif))].join(", ")}.)\n` : "")
       + "\nTu proposes, je décide : reste large, ta note est une indication, ne cache rien. Lis chacune (Bien'ici : sa fiche est prête, python3 tools/donnees.py voir <URL> ; Leboncoin : ouvrir_page puis extraire_annonce) et donne-lui une note sur 10 dans sa fiche (note, résumé qui la justifie, pour, contre), d'après recherche.md. Ne retire rien de ma liste. "

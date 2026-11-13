@@ -13,8 +13,17 @@ CERCLE_2 = {c["nom"] for c in json.load(open(_zone, encoding="utf-8")).get("comm
 _profil = pathlib.Path(os.environ.get("APPARTHUNT_WORKSPACE") or _root / "ma-recherche") / "profil.json"
 CIBLE = json.load(open(_profil, encoding="utf-8")).get("budget_cible", 800) if _profil.exists() else 800
 
+# entrée et sortie : seulement des .json du dossier de recherche (l'agent lance cet outil sans demander)
+_ws = (pathlib.Path(os.environ.get("APPARTHUNT_WORKSPACE") or _root / "ma-recherche")).resolve()
+def _dans_ws(f):
+    f = pathlib.Path(f).resolve()
+    if f.suffix != ".json" or not f.is_relative_to(_ws):
+        sys.exit(f"Fichier refusé : {f} (seulement un .json du dossier de recherche)")
+    return f
+ENTREE, SORTIE = _dans_ws(sys.argv[1]), _dans_ws(sys.argv[2])
+
 lot = []
-for s, p, city, d, r, sq, fl, m, dpe, park, ext, img, i in json.load(open(sys.argv[1])):
+for s, p, city, d, r, sq, fl, m, dpe, park, ext, img, i in json.load(open(ENTREE)):
     typ = {1: " — studio", 3: " — T3"}.get(r, "")
     pro = [x for x in ["parking" if park else "", "terrasse" if ext == 2 else "balcon" if ext == 1 else "",
                        "non meublé" if not m else ""] if x]
@@ -25,5 +34,5 @@ for s, p, city, d, r, sq, fl, m, dpe, park, ext, img, i in json.load(open(sys.ar
                     pro=", ".join(pro) or "—", con=" ; ".join(con) or "—", img=img,
                     u=f"https://www.leboncoin.fr/ad/locations/{i}"))
 lot.sort(key=lambda x: -x["s"])
-json.dump(lot, open(sys.argv[2], "w"), ensure_ascii=False)
+json.dump(lot, open(SORTIE, "w"), ensure_ascii=False)
 print(len(lot), "annonces")

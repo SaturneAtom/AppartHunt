@@ -20,8 +20,13 @@ def cmd_tool(args):
     if not fn:
         raise SystemExit(f"Outil inconnu : {args.name}. Outils : {', '.join(BY_NAME)}")
     raw = args.params or "{}"
-    if raw.startswith("@"):  # @fichier.json : paramètres lus dans un fichier
-        raw = open(raw[1:], encoding="utf-8").read()
+    if raw.startswith("@"):  # @fichier.json : paramètres lus dans un fichier .json du dossier de recherche ou du projet
+        from pathlib import Path
+        f = Path(raw[1:]).expanduser().resolve()
+        permis = [db.DATA_DIR.parents[1].resolve(), Path(__file__).resolve().parents[3]]
+        if f.suffix != ".json" or not any(f.is_relative_to(d) for d in permis):
+            raise SystemExit(f"Fichier refusé : {f} (seulement un .json du dossier de recherche ou du projet)")
+        raw = f.read_text(encoding="utf-8")
     params = json.loads(raw)
     Session.con, Session.run_id = db.connect(), args.run or uuid.uuid4().hex[:8]
     db.log(Session.con, Session.run_id, "outil", {"nom": args.name, "entree": params})
@@ -58,7 +63,7 @@ def cmd_status(args):
     rows = con.execute("SELECT id, price, m2, city, district, score, verdict_reasons FROM listings "
                        "WHERE verdict = 'keep' ORDER BY score DESC LIMIT 10").fetchall()
     for r in rows:
-        print(f"  {r['score']:>3}/100  {r['price']} €  {r['m2'] or '?'} m²  {r['city']} {r['district'] or ''} — {r['verdict_reasons']}")
+        print(f"  {r['score'] if r['score'] is not None else '?':>3}/100  {r['price']} €  {r['m2'] or '?'} m²  {r['city']} {r['district'] or ''} — {r['verdict_reasons']}")
 
 
 def cmd_approvals(args):

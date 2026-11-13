@@ -22,6 +22,19 @@ class Session:
     stats = {"vues": 0, "nouvelles": 0, "lues": 0, "gardees": 0, "ecartees": 0, "likees": 0, "propositions": 0}
 
 
+def _ref(listing_id: str):
+    """« leboncoin:<numéro> » → le numéro, ou None si l'identifiant n'a pas cette forme (rien d'autre n'arrive dans une adresse)."""
+    site, _, ref = str(listing_id).partition(":")
+    return ref if site == "leboncoin" and ref.isdigit() else None
+
+
+def _nombre(x):
+    try:
+        return float(str(x).replace("€", "").replace(" ", "").replace(",", ".")) if x not in (None, "") else None
+    except ValueError:
+        return None
+
+
 def _out(obj) -> str:
     return json.dumps(obj, ensure_ascii=False)
 
@@ -40,7 +53,11 @@ def search_listings(cities: list[str], max_price: int = 1000, rooms_min: int = 1
         rooms_max: Nombre maximum de pièces.
         include_houses: Inclure les maisons en plus des appartements.
     """
-    ads = leboncoin.search(Session.ctx, cities[:10], max_price, rooms_min, rooms_max, include_houses)
+    try:
+        max_price, rooms_min, rooms_max = int(max_price), int(rooms_min), int(rooms_max)
+    except (TypeError, ValueError):
+        return _out({"erreur": "max_price, rooms_min et rooms_max doivent être des nombres entiers"})
+    ads = leboncoin.search(Session.ctx, [str(c) for c in cities[:10]], max_price, rooms_min, rooms_max, bool(include_houses))
     fresh = [ad for ad in ads if db.upsert_listing(Session.con, ad)]
     Session.stats["vues"] += len(ads)
     Session.stats["nouvelles"] += len(fresh)
@@ -66,6 +83,12 @@ def save_listings(listings: list[dict]) -> str:
         ad = {**{k: None for k in ("site", "url", "title", "price", "m2", "rooms", "city", "district", "floor",
                                     "furnished", "dpe", "parking", "outdoor", "description", "lat", "lng")},
               "photos": [], **ad}
+        if not _ref(ad.get("id")):
+            continue                     # identifiant attendu : « leboncoin:<numéro> »
+        for k in ("price", "m2", "lat", "lng"):
+            ad[k] = _nombre(ad[k])
+        for k in ("rooms", "floor"):
+            ad[k] = int(_nombre(ad[k])) if _nombre(ad[k]) is not None else None
         if db.upsert_listing(Session.con, ad):
             fresh.append({k: ad[k] for k in ("id", "title", "price", "m2", "rooms", "city", "district", "floor", "dpe")})
     Session.stats["vues"] += len(listings)
@@ -79,9 +102,9 @@ def read_listing(listing_id: str) -> str:
     Args:
         listing_id: Identifiant renvoyé par search_listings, par exemple "leboncoin:1234567890".
     """
-    site, _, ref = listing_id.partition(":")
-    if site != "leboncoin":
-        return _out({"erreur": f"site {site} pas encore pris en charge"})
+    ref = _ref(listing_id)
+    if not ref:
+        return _out({"erreur": "identifiant attendu : leboncoin:<numéro>"})
     ad = leboncoin.details(Session.ctx, ref)
     db.upsert_listing(Session.con, ad)
     Session.stats["lues"] += 1
@@ -135,9 +158,9 @@ def like_listing(listing_id: str) -> str:
     Args:
         listing_id: Identifiant de l'annonce.
     """
-    site, _, ref = listing_id.partition(":")
-    if site != "leboncoin":
-        return _out({"erreur": f"site {site} pas encore pris en charge"})
+    ref = _ref(listing_id)
+    if not ref:
+        return _out({"erreur": "identifiant attendu : leboncoin:<numéro>"})
     status = leboncoin.like(Session.ctx, ref)
     if status.startswith("ajouté"):
         Session.stats["likees"] += 1
@@ -154,9 +177,11 @@ def propose_application(listing_id: str, message: str) -> str:
         listing_id: Identifiant de l'annonce.
         message: Message de candidature en français, court, personnalisé selon l'annonce.
     """
+    Session.con.execute("BEGIN IMMEDIATE")      # deux passages en même temps ne peuvent pas préparer chacun la sienne
     prev = Session.con.execute("SELECT id, ts, status FROM approvals WHERE action = 'candidature' AND listing_id = ? "
                                "AND status != 'declined' ORDER BY ts DESC LIMIT 1", (listing_id,)).fetchone()
     if prev:  # garde-fou : jamais deux candidatures pour la même annonce
+        Session.con.rollback()
         return _out({"erreur": f"candidature déjà {'préparée' if prev['status'] == 'pending' else 'validée'} le "
                                f"{time.strftime('%d/%m/%Y', time.localtime(prev['ts']))} (#{prev['id']}, {prev['status']}) : n'en prépare pas d'autre"})
     Session.con.execute("INSERT INTO approvals (ts, action, listing_id, payload) VALUES (?, ?, ?, ?)",
