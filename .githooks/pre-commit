@@ -1,5 +1,7 @@
 #!/bin/sh
-# Garde-fou : refuse tout commit qui contient des pièces du dossier locataire ou des données perso.
+# 1. Clés d'API, jetons, mots de passe, fichiers .env : jamais dans un commit
+"$(dirname "$0")/anti-cles.sh" || exit 1
+# 2. # Garde-fou : refuse tout commit qui contient des pièces du dossier locataire ou des données perso.
 # core.quotePath=false : sinon un nom accentué (« Capture d’écran….png », « relevé.pdf ») arrive entre guillemets et passe.
 bad=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -i -E '^(ma-recherche/|dossier/pieces/|dossier/profil\.txt|data/|agent/data/|recherche\.md$|profil\.json$|zone\.json$|annonces\.md$|selection\.html$|choix\.json$|resumes\.json$|ecran\.json$|journal\.json$)|\.(pdf|jpe?g|png|heic|webp|gif|db|sqlite3?|jsonl)$' | grep -v -E '^(examples|app/icon|docs/images)/')
 if [ -n "$bad" ]; then
