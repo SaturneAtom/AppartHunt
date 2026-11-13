@@ -45,17 +45,7 @@ Tu écris ce que tu veux en français, comme à quelqu'un : budget, quartiers, c
 
 ## Comment c'est construit
 
-```mermaid
-flowchart TB
-    A["Tes mots · recherche.md"] --> B["Claude Code · le cerveau"]
-    V["Veille · toutes les 30 min"] --> B
-    B --> T["Outils Python · chercher, lire, noter, retenir"]
-    B --> N["Navigateur de l'appli · ta session"]
-    T --> D[("Base SQLite locale")]
-    N --> D
-    D --> U["Appli de bureau · liste, carte, fiches"]
-    U -- "tu valides" --> B
-```
+<p align="center"><img src="docs/images/schema.svg" alt="Tes mots et la veille vont à Claude Code, qui utilise les outils Python et le navigateur de l'appli ; tout arrive dans une base SQLite locale, affichée dans l'appli de bureau, où tu valides" width="100%"></p>
 
 - **Le cerveau, c'est Claude Code**, en local, guidé par un skill ([`.claude/skills/agent-locataire`](.claude/skills/agent-locataire/SKILL.md)) qui décrit un passage de recherche et ses règles. Pas de clé d'API à fournir.
 - **Le modèle lit et rédige, le code calcule.** La note vient d'un barème déterministe ([`scoring.py`](agent/src/agent_locataire/scoring.py)) que l'agent appelle comme un outil.
