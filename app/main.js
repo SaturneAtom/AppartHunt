@@ -13,7 +13,8 @@ const zoneSrc = require("../tools/zone");
 if (process.env.APPARTHUNT_USER_DATA) app.setPath("userData", path.resolve(process.env.APPARTHUNT_USER_DATA));
 // Débogage : Claude Code peut se brancher sur l'appli (127.0.0.1 seulement) pour voir l'écran, lire l'état et les erreurs
 // sans la relancer (tools/appli.py). APPARTHUNT_DEBUG_PORT=0 pour couper.
-const DEBUG_PORT = process.env.APPARTHUNT_DEBUG_PORT ?? "9333";
+// Coupé par défaut : n'importe quel programme de la machine pourrait piloter l'appli par ce port. APPARTHUNT_DEBUG_PORT=9333 pour l'ouvrir.
+const DEBUG_PORT = process.env.APPARTHUNT_DEBUG_PORT || "0";
 if (DEBUG_PORT !== "0") { app.commandLine.appendSwitch("remote-debugging-port", DEBUG_PORT); app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1"); }
 // Journal : ce que l'appli dit (veille, agent, erreurs de la fenêtre) va aussi dans appli.log, gardé d'une ouverture à l'autre
 const LOG = path.join(app.getPath("userData"), "appli.log");
@@ -39,12 +40,22 @@ process.env.PATH = [...new Set([path.join(os.homedir(), ".local", "bin"), path.j
 const DONNEES = path.join(REPO, "tools", "donnees.py");
 const donnees = (...args) => JSON.parse(execFileSync("python3", [DONNEES, ...args], { cwd: WORKSPACE, encoding: "utf8", maxBuffer: 64 << 20 }));
 
-// Comme Claude Code : ce qui sert à travailler sur le code et la recherche passe sans demander ; le reste te demande (carte Oui / Non dans la conversation, outil autoriser), rien n'est refusé en silence.
-// Seul git push reste interdit : le dépôt est public, et il ne part qu'après ton accord, depuis le terminal.
-const ALLOWED = ["Read", "Glob", "Grep", "Edit", "Write", "NotebookEdit", "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch", "WebFetch", "mcp__navigateur__*", "mcp__claude-in-chrome__*",
+// Ce que l'agent fait sans te demander. Il lit des annonces et des pages écrites par des inconnus : un texte piégé peut
+// essayer de lui faire faire autre chose (injection de consignes). Par défaut, il ne fait donc seul que ce qui reste dans
+// le projet : ses outils, la lecture du code, l'écriture dans le dossier de recherche. Le reste (python3 -c, modifier le code
+// de l'appli, aller chercher une page avec WebFetch, lire hors du projet…) affiche une carte Oui / Non dans la conversation.
+// APPARTHUNT_MODE_DEV=1 rend la liste large d'avant (python3, node, npm, sed… sans demander) : seulement si tu sais pourquoi.
+const absolu = p => "//" + path.resolve(p).replace(/^\//, "") + "/**";   // règle de permission sur un chemin absolu
+const OUTILS = ["./al", "python3 tools/donnees.py", "python3 tools/suivi.py", "python3 tools/build_page.py", "python3 tools/ajout.py",
+  "python3 tools/cmp2lot.py", "python3 tools/dossier.py", "node tools/append.js", "node --check", "git status", "git diff", "git log", "git show", "date", "pwd"];
+const ALLOWED_SUR = [`Read(${absolu(REPO)})`, `Read(${absolu(WORKSPACE)})`, `Edit(${absolu(WORKSPACE)})`, "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch",
+  "mcp__navigateur__*", "mcp__claude-in-chrome__*", ...OUTILS.map(c => `Bash(${c}:*)`)];
+const ALLOWED_DEV = ["Read", "Glob", "Grep", "Edit", "Write", "NotebookEdit", "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch", "WebFetch", "mcp__navigateur__*", "mcp__claude-in-chrome__*",
   ...["./al", "python3", "node", "npm", "npx", "uv", "git status", "git diff", "git log", "git show", "git blame", "git branch", "ls", "cat", "head", "tail", "grep", "rg", "find", "wc", "cut", "sort", "uniq", "tr", "awk", "sed", "jq", "diff", "echo", "printf", "pwd", "stat", "file", "which", "date", "sleep", "mkdir"].map(c => `Bash(${c}:*)`)];
-let mcpConfig = null;   // fichier de config MCP du navigateur intégré (créé au démarrage)
+const MODE_DEV = process.env.APPARTHUNT_MODE_DEV === "1";
+const ALLOWED = MODE_DEV ? ALLOWED_DEV : ALLOWED_SUR;
 const DISALLOWED = ["Bash(git push:*)"];
+let mcpConfig = null;   // fichier de config MCP du navigateur intégré (créé au démarrage)
 
 const APP_MODE = `Tu es Claude Code, dans la colonne de l'appli AppartHunt : le même que dans un terminal, avec les mêmes moyens (lire, modifier, lancer des commandes, chercher sur le web). Tu fais deux choses : trouver à l'utilisateur LE bon appartement, d'après recherche.md (ses contraintes et ses choix, la référence de tout), et faire évoluer cette appli, dont tu es le développeur.
 
@@ -148,14 +159,20 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false },
   });
   win.loadFile(path.join(__dirname, "index.html"));
-  win.webContents.on("console-message", (_e, level, message, line, source) => { if (level >= 2) console.error("[fenêtre]", message, `(${path.basename(source || "")}:${line})`); });
+  // Electron 35+ : un seul objet évènement (level = "error", "warning"…)
+  win.webContents.on("console-message", e => {
+    if (e.level === "error" || e.level === "warning") console.error("[fenêtre]", e.message, `(${path.basename(e.sourceId || "")}:${e.lineNumber})`);
+  });
   // si la fenêtre tombe (mémoire, processus tué), elle se recharge seule au lieu de rester blanche ; conversation et données sont gardées
   win.webContents.on("render-process-gone", (_e, d) => { console.error("[fenêtre] arrêtée :", d.reason); if (d.reason !== "clean-exit") setTimeout(() => win?.webContents.reload(), 500); });
   // les liens vers les sites s'ouvrent dans l'onglet Navigateur, pas dans un autre navigateur
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) { agentBrowser.load(url); agentBrowser.show(); } else shell.openExternal(url);
+    // seulement le web, dans l'onglet Navigateur ; jamais shell.openExternal (file:, smb:… lanceraient un programme)
+    if (/^https?:\/\//i.test(url)) { agentBrowser.load(url); agentBrowser.show(); }
     return { action: "deny" };
   });
+  // la fenêtre de l'appli ne quitte jamais index.html : un lien glissé dans une annonce ne peut pas la remplacer par une autre page
+  win.webContents.on("will-navigate", (e, url) => { if (url !== win.webContents.getURL()) e.preventDefault(); });
 }
 
 /* ---------- Données : annonces, profil, choix ---------- */
@@ -373,9 +390,13 @@ const AUTORISE = path.join(app.getPath("userData"), "autorisations.json");
 const autorises = new Set(readJSON(AUTORISE, []));
 const COMPOSEE = /[;&|`$()<>\n]/;
 function cleAutorisation(tool, input) {
+  // « Toujours » vaudrait pour tous les fichiers ou toutes les adresses : jamais pour écrire, ni pour aller chercher une page
+  if (/^(Edit|Write|NotebookEdit|MultiEdit|WebFetch|Read|Glob|Grep)$/.test(tool)) return null;
   if (tool !== "Bash") return tool;
   const cmd = String(input?.command || "").trim(), mots = cmd.split(/\s+/);
   if (COMPOSEE.test(cmd) || /^(rm|rmdir|sudo)$/.test(mots[0]) || (mots[0] === "git" && /^(clean|reset|checkout)$/.test(mots[1]))) return null;
+  // un interpréteur ou un outil réseau peut tout faire : chaque appel se valide
+  if (/^(python3?|node|bash|sh|zsh|perl|ruby|osascript|curl|wget|nc|ssh|scp|open|env|xargs|eval|exec)$/.test(mots[0])) return null;
   return "Bash:" + (["git", "npm", "npx", "uv", "brew"].includes(mots[0]) ? mots.slice(0, 2).join(" ") : mots[0]);
 }
 const decritOutil = (tool, input) => tool === "Bash" ? `Je veux lancer cette commande${input?.description ? ` (${input.description})` : ""} :\n${input?.command}`

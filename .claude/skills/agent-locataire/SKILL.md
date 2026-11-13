@@ -21,6 +21,7 @@ Toutes les commandes se lancent depuis la racine du projet :
 |---|---|---|
 | `recall` | — | Relit ta mémoire des passages précédents |
 | `search_listings` | `cities` (liste, 10 max), `max_price`, `rooms_min`, `rooms_max`, `include_houses` | Cherche sur Leboncoin (tri par date) et renvoie **uniquement les annonces jamais vues** |
+| `save_listings` | `listings` (liste d'annonces : id, url, title, price, m2, city…) | Enregistre des annonces lues ailleurs et renvoie **uniquement celles jamais vues** |
 | `read_listing` | `listing_id` | Lit la fiche complète : description, étage, DPE, photos |
 | `score_listing` | `listing_id` | Note sur 100 avec le barème et liste les motifs éliminatoires |
 | `decide` | `listing_id`, `verdict` (`keep`/`reject`), `reasons` | Enregistre ta décision et sa justification |
@@ -42,9 +43,7 @@ Leboncoin bloque le navigateur automatisé de l'agent (« Accès temporairement 
 
 - **Clique, ne télécharge pas en rafale.** Ouvre la recherche, fais défiler, clique sur une annonce pour la lire, reviens, passe à la page suivante avec le bouton de pagination. Pas de `fetch()` en boucle vers Leboncoin, pas de pages ouvertes en parallèle.
 - **Prends ton temps** : 2 à 4 secondes entre deux actions, une annonce à la fois.
-- **Lis ce que la page affiche déjà.** Pour envoyer les données à la base, la page courante contient son JSON `__NEXT_DATA__` : envoie-le à la boîte de réception locale (lancée avec `./al inbox`, en tâche de fond) :
-  - page de résultats : `fetch('http://127.0.0.1:8777/leboncoin/search', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ads: JSON.parse(document.getElementById('__NEXT_DATA__').textContent).props.pageProps.searchData.ads})}).then(r=>r.json())` → renvoie les **nouvelles** annonces ;
-  - fiche annonce : même chose vers `/leboncoin/ad` avec `{ad: …props.pageProps.ad}` → renvoie la fiche résumée et sa description.
+- **Lis ce que la page affiche déjà.** Dans l'appli, `mcp__navigateur__extraire_annonce` enregistre la fiche ouverte d'un coup et `mcp__navigateur__annonces_page` relève les annonces d'une page de résultats. Hors de l'appli, relève les champs visibles (le JSON `__NEXT_DATA__` de la page les contient), écris-les dans un fichier et enregistre-les avec `./al tool save_listings @lot.json` : l'outil renvoie seulement les **nouvelles** annonces.
 - **Favori** : sur la fiche, clique le cœur affiché sur les photos (avec le compteur à côté). S'il est déjà rouge, elle est en favori : ne clique pas. Vérifie après coup que le cœur est rouge.
 - Puis `score_listing`, `decide`, `propose_application`, `remember` en ligne de commande, comme d'habitude.
 - Refuse les cookies (« Je refuse » / « Continuer sans accepter »). Si une vérification ou un CAPTCHA apparaît, arrête-toi et demande à l'utilisateur de la faire.

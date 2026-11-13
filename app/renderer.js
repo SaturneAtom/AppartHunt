@@ -1,6 +1,11 @@
 // Fenêtre : la voix (ou le clavier) parle à Claude Code ; l'écran montre la conversation et les annonces qui valent le coup.
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Les adresses viennent des annonces, donc d'inconnus : seulement http(s) (ou une image en data:), et aucun caractère
+// qui permettrait de sortir de url('…') dans un style. Les liens : http(s) seulement, sinon rien ne s'ouvre.
+const imgSure = u => /^(https?:\/\/|data:image\/(png|jpe?g|webp|gif|svg\+xml)[;,])[^\s'"()<>\\]+$/i.test(String(u || "")) ? String(u) : "";
+const fond = u => imgSure(u) ? `background-image:url('${imgSure(u)}')` : "";
+const lienSur = u => /^https?:\/\//i.test(String(u || "")) ? String(u) : "#";
 let data = { listings: [], profil: {}, choix: { oui: [], non: [] }, resumes: {} };
 // Candidature et historique d'une annonce (choix.json, tenus par main.js et tools/suivi.py)
 const CAND = { preparee: "Candidature prête", envoyee: "Postulé", relancee: "Relancé", visite: "Visite", retenue: "Retenu !", refusee: "Refusé", abandonnee: "Abandonnée" };
@@ -246,7 +251,7 @@ function render(keepFilters) {
   const groups = F.tri === "recent" && !maListe, per = items.map(x => groups ? PERIODE(x.a) : 0);
   const rankIn = i => { let k = i; while (k > 0 && per[k - 1] === per[i]) k--; return i - k + 1; };
   const place = a => (a.w || "").split(" — ").slice(0, 2).join(" · ") || "Annonce";
-  const photo = a => `<div class="ph" style="${a.img ? `background-image:url('${esc(a.img)}')` : ""}"></div>`;
+  const photo = a => `<div class="ph" style="${fond(a.img)}"></div>`;
   const ligne = (x, n) => { const a = x.a, age = ageLabel(a);
     return `<article class="ad arow" data-u="${esc(a.u)}">
       <span class="num">${n ?? ""}</span>${photo(a)}
@@ -294,7 +299,7 @@ function majCarte(items, visible) {
   for (const { x, p } of pts) {
     const a = x.a;
     L.circleMarker([p.lat, p.lng], { radius: 7, weight: 1.5, fillOpacity: .95, className: "pt " + noteClasse(x.note) }).addTo(carteCouche)
-      .bindPopup(`<button type="button" class="popad" data-carte-u="${esc(a.u)}">${a.img ? `<span class="popph" style="background-image:url('${esc(a.img)}')"></span>` : ""}<b>${esc((a.w || "Annonce").split(" — ").slice(0, 2).join(" · "))}</b><span>${[a.p && a.p + " €", a.m2 && String(a.m2).replace(".", ",") + " m²", x.note != null && x.note + "/10"].filter(Boolean).join(" · ")}</span><i>Voir la fiche ›</i></button>`, { closeButton: false, minWidth: 200 });
+      .bindPopup(`<button type="button" class="popad" data-carte-u="${esc(a.u)}">${imgSure(a.img) ? `<span class="popph" style="${fond(a.img)}"></span>` : ""}<b>${esc((a.w || "Annonce").split(" — ").slice(0, 2).join(" · "))}</b><span>${[a.p && esc(a.p) + " €", a.m2 && String(a.m2).replace(".", ",") + " m²", x.note != null && x.note + "/10"].filter(Boolean).join(" · ")}</span><i>Voir la fiche ›</i></button>`, { closeButton: false, minWidth: 200 });
   }
   const sig = pts.map(o => o.x.a.u).sort().join("|");
   if (pts.length && sig !== carteSig && (!carteSig || !carteTouchee)) carte.fitBounds(pts.map(o => [o.p.lat, o.p.lng]), { padding: [24, 24], maxZoom: 14 });
@@ -412,13 +417,13 @@ function panel(u) {
       ${photos.length ? `<img class="big" src="${esc(photos[i])}" alt="Photo ${i + 1} sur ${photos.length}">` : `<div class="big empty">${busy ? "Je vais chercher les photos…" : "Pas encore de photos. Dis « montre-moi les photos »."}</div>`}
       ${photos.length > 1 ? `<button type="button" class="nav prev" data-act="prev" aria-label="Photo précédente">‹</button><button type="button" class="nav next" data-act="next" aria-label="Photo suivante">›</button><span class="count">${i + 1} / ${photos.length}</span>` : ""}
     </div>
-    ${photos.length > 1 ? `<div class="thumbs">${photos.map((p, k) => `<button type="button" data-act="ph" data-i="${k}" class="${k === i ? "on" : ""}" style="background-image:url('${esc(p)}')" aria-label="Photo ${k + 1}"></button>`).join("")}</div>` : ""}
+    ${photos.length > 1 ? `<div class="thumbs">${photos.map((p, k) => `<button type="button" data-act="ph" data-i="${k}" class="${k === i ? "on" : ""}" style="${fond(p)}" aria-label="Photo ${k + 1}"></button>`).join("")}</div>` : ""}
     <div class="fbody">
       <div class="row1">
         <h2 class="place">${esc(a.w || "Annonce")}</h2>
         ${noteHtml(v.note, true)}
       </div>
-      <p class="keys">${a.p ? `<span>${a.p} €</span>` : ""}<span class="f">${esc(a.f)}</span>${ageLabel(a) ? `<span class="f">${esc(ageLabel(a))}</span>` : ""}</p>
+      <p class="keys">${a.p ? `<span>${esc(a.p)} €</span>` : ""}<span class="f">${esc(a.f)}</span>${ageLabel(a) ? `<span class="f">${esc(ageLabel(a))}</span>` : ""}</p>
       ${candTag(u)}
       <div class="fdo">
         <button type="button" class="btn${kept ? " ink" : ""}" data-act="garde">${kept ? "Gardée ✓" : "Je garde"}</button>
@@ -438,7 +443,7 @@ function panel(u) {
       ${details.length ? `<section class="fwhy"><h3>Les détails</h3><dl class="det">${details.map(([k, x]) => `<div><dt>${esc(k)}</dt><dd>${esc(x)}</dd></div>`).join("")}</dl></section>` : ""}
       ${r.description ? `<section class="fwhy"><h3>L'annonce</h3><p class="desc">${esc(r.description)}</p></section>` : ""}
       ${historyOf(u)}
-      <a class="ext" href="${esc(u)}" target="_blank" rel="noopener">Voir l'annonce sur ${esc(siteOf(u))} ↗</a>
+      <a class="ext" href="${esc(lienSur(u))}" target="_blank" rel="noopener">Voir l'annonce sur ${esc(siteOf(u))} ↗</a>
     </div>
   </article>`;
 }
@@ -495,12 +500,12 @@ function compareTable(urls) {
   return `<div class="cmp-wrap">
     ${extra.conclusion ? `<p class="conclusion">${esc(extra.conclusion)}</p>` : `<p class="conclusion wait">${busy ? "L'agent prépare sa conclusion…" : ""}</p>`}
     <table class="cmp">
-      <thead><tr><th></th>${cols.map(c => `<th><div class="cph" style="${c.img ? `background-image:url('${esc(c.img)}')` : ""}"></div><div class="cname">${esc((c.a.w || "").split(" — ").slice(0, 2).join(", "))}</div>${verdict(c)}</th>`).join("")}</tr></thead>
+      <thead><tr><th></th>${cols.map(c => `<th><div class="cph" style="${fond(c.img)}"></div><div class="cname">${esc((c.a.w || "").split(" — ").slice(0, 2).join(", "))}</div>${verdict(c)}</th>`).join("")}</tr></thead>
       <tbody>${body}
         <tr><th>En bref</th>${cols.map(c => `<td class="txtc">${esc(c.v.resume || "")}</td>`).join("")}</tr>
         <tr><th>Pour</th>${cols.map(c => `<td class="txtc">${c.v.pour.map(t => `<div class="p">${esc(t)}</div>`).join("")}</td>`).join("")}</tr>
         <tr><th>Contre</th>${cols.map(c => `<td class="txtc">${c.v.contre.map(t => `<div class="c">${esc(t)}</div>`).join("")}</td>`).join("")}</tr>
-        <tr><th></th>${cols.map(c => `<td><a class="ext" href="${esc(c.u)}" target="_blank" rel="noopener">Voir sur ${esc(siteOf(c.u))}</a></td>`).join("")}</tr>
+        <tr><th></th>${cols.map(c => `<td><a class="ext" href="${esc(lienSur(c.u))}" target="_blank" rel="noopener">Voir sur ${esc(siteOf(c.u))}</a></td>`).join("")}</tr>
       </tbody>
     </table>
   </div>`;
@@ -1221,8 +1226,8 @@ function poidsBars() {
   const P = data.profil.poids || {};
   const keys = Object.keys(P).sort((a, b) => P[b] - P[a]);
   if (!keys.length) return "";
-  const max = Math.max(...keys.map(k => P[k]));
-  return `<div class="poids">${keys.map(k => `<span>${esc(k.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()))}</span><span class="bar"><i style="width:${(P[k] / max) * 100}%"></i></span><b>${P[k]} %</b>`).join("")}</div>`;
+  const max = Math.max(...keys.map(k => +P[k] || 0));
+  return `<div class="poids">${keys.map(k => `<span>${esc(k.replace(/_/g, " ").replace(/^./, c => c.toUpperCase()))}</span><span class="bar"><i style="width:${((+P[k] || 0) / (max || 1)) * 100}%"></i></span><b>${+P[k] || 0} %</b>`).join("")}</div>`;
 }
 
 /* ---------- Activité : chaque session de l'agent et chaque passage de la veille, et leur log complet ---------- */
@@ -1384,7 +1389,7 @@ function remplirLog(d) {
   const q = act.lq.toLowerCase().trim();
   b.innerHTML = `<h5>Entrée</h5><pre>${hl(entreeDe(e), q)}</pre>`
     + (e.res != null ? `<h5>${e.err ? "Erreur" : "Résultat"} · ${e.res.length.toLocaleString("fr-FR")} caractères</h5><pre class="${e.err ? "ko" : ""}">${hl(e.res, q) || "(vide)"}</pre>` : `<h5 class="ko">Pas de résultat : action interrompue, ou encore en cours</h5>`)
-    + (e.images || []).map(src => `<img src="${src}" alt="Capture d'écran renvoyée par l'outil">`).join("");
+    + (e.images || []).filter(src => /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(src)).map(src => `<img src="${src}" alt="Capture d'écran renvoyée par l'outil">`).join("");
 }
 async function majSession() {
   const S = await window.apparthunt.session(act.vue.id); if (!S || act.vue?.id !== S.id) return;
@@ -1504,7 +1509,7 @@ function renderProfil() {
       <p class="sub">Tes goûts et ce qu'il a appris en cherchant. Il relit tout ça avant chaque recherche.</p>
       ${prof.memoire.length ? `<ul class="reg">${prof.memoire.map(m => `<li><time>${day(m.ts * 1000)}</time><span>${esc(m.note)}</span></li>`).join("")}</ul>` : `<p class="empty">Rien pour l'instant. Dis par exemple « j'aime les parquets anciens, ça fait plus chaleureux ».</p>`}
       ${kept.length ? `<h3 style="margin:22px 0 4px;font-weight:500;font-size:16px">Ce que j'ai gardé, et pourquoi</h3>
-        <ul class="reg">${kept.map(({ u, a, r }) => `<li><time>${a ? a.p + " €" : ""}</time><span><a class="ext" data-open="${esc(u)}" href="#">${esc(a ? (a.w || "").split(" — ").slice(0, 2).join(", ") : siteOf(u))}</a><span class="why">${esc(r.resume || (r.pour || []).join(", ") || "")}</span></span></li>`).join("")}</ul>` : ""}
+        <ul class="reg">${kept.map(({ u, a, r }) => `<li><time>${a ? esc(a.p) + " €" : ""}</time><span><a class="ext" data-open="${esc(u)}" href="#">${esc(a ? (a.w || "").split(" — ").slice(0, 2).join(", ") : siteOf(u))}</a><span class="why">${esc(r.resume || (r.pour || []).join(", ") || "")}</span></span></li>`).join("")}</ul>` : ""}
     </section>
 
     <section class="psec" id="p-registre">

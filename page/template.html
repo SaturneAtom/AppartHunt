@@ -181,7 +181,8 @@ select{font:inherit;font-size:16px;padding:9px 10px;border-radius:8px;border:1px
 <script>
 const A=(window.ANNONCES||[]);
 const $=id=>document.getElementById(id);
-const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const lienSur=u=>/^https?:\/\//i.test(String(u||""))?String(u):"#";   // liens venus des annonces : http(s) seulement
 const store={get(k,d){try{const v=localStorage.getItem("bab2_"+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem("bab2_"+k,JSON.stringify(v))}catch(e){}}};
 const lastVisit=store.get("lastVisit",null);
 store.set("lastVisit",new Date().toISOString().slice(0,16));
@@ -224,7 +225,7 @@ function drawMap(items){
     const [k]=LEVEL(a.s),lv=loved.has(a.u);
     const icon=L.divIcon({className:"",html:`<div class="pin${lv?" love":""}" data-u="${esc(a.u)}" style="background:${lv?css("--love"):css("--"+k)}">${lv?"♥":""}</div>`,iconSize:lv?[28,28]:[22,22]});
     L.marker([a.lat,a.lng],{icon}).addTo(layer)
-     .bindPopup(`<div class="pop">${a.img?`<img src="${esc(a.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}<b>${a.p} €</b> · ${esc(a.m2)} m²<br>${esc(a.w)}<br><a href="${esc(a.u)}" target="_blank" rel="noopener">Voir l'annonce</a></div>`)
+     .bindPopup(`<div class="pop">${a.img?`<img src="${esc(a.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}<b>${esc(a.p)} €</b> · ${esc(a.m2)} m²<br>${esc(a.w)}<br><a href="${esc(lienSur(a.u))}" target="_blank" rel="noopener">Voir l'annonce</a></div>`)
      .on("click",()=>{const c=document.querySelector(`.card[data-u="${CSS.escape(a.u)}"]`);if(c){c.scrollIntoView({behavior:"smooth",block:"center"});hot(a.u)}});
   }
 }
@@ -269,13 +270,13 @@ function card(a){
   const low=a.m2&&COEUR.includes(a.city)&&a.p/a.m2<11;   // prix au m² suspect dans le premier cercle de la zone
   const facts=[a.m2?`${String(a.m2).replace(".",",")} m²`:null,TYPE[a.type],fl,a.furnished===false?"Vide":a.furnished?"Meublé":null].filter(Boolean);
   return `<article class="card${no?" nope":""}" data-u="${esc(a.u)}">
-    <a class="photo" href="${esc(a.u)}" target="_blank" rel="noopener" aria-label="Voir l'annonce ${esc(a.w)}">
+    <a class="photo" href="${esc(lienSur(a.u))}" target="_blank" rel="noopener" aria-label="Voir l'annonce ${esc(a.w)}">
       ${a.img?`<img src="${esc(a.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:""}
       <span class="none">Photos sur l'annonce</span>
       <span class="label ${k}">${txt}</span>${isNew(a)?'<span class="newb">Nouveau</span>':""}
     </a>
     <div class="body">
-      <div class="price">${a.p} € <small>par mois, charges comprises</small></div>
+      <div class="price">${esc(a.p)} € <small>par mois, charges comprises</small></div>
       <div class="where">${esc(a.w)}</div>
       <div class="facts">${facts.map(f=>`<span class="fact">${esc(f)}</span>`).join("")}</div>
       ${low?'<div class="alert">Prix étonnamment bas : ne jamais envoyer d\'argent avant d\'avoir visité.</div>':""}
@@ -284,7 +285,7 @@ function card(a){
       <div class="actions">
         <button type="button" class="act love" data-act="love" aria-pressed="${lv}">${lv?"♥ On aime":"♡ On aime"}</button>
         <button type="button" class="act no" data-act="nope" aria-pressed="${no}">${no?"Remettre":"✕ Pas pour nous"}</button>
-        <a class="go" href="${esc(a.u)}" target="_blank" rel="noopener">Voir l'annonce</a>
+        <a class="go" href="${esc(lienSur(a.u))}" target="_blank" rel="noopener">Voir l'annonce</a>
       </div>
       <span class="from">Annonce ${esc(a.site)}</span>
     </div></article>`;

@@ -128,6 +128,7 @@ function init(win) {
   // un lien « nouvel onglet » s'ouvre dans l'onglet ; une vraie pop-up (connexion à un compte…) garde sa petite fenêtre,
   // avec la même session, sinon la connexion ne revient jamais à la page
   wc.setWindowOpenHandler(({ url, disposition }) => {
+    if (!/^https?:\/\//i.test(url)) return { action: "deny" };   // une page ne peut pas ouvrir file:// ni un autre protocole
     if (disposition === "new-window") return { action: "allow", overrideBrowserWindowOptions: { parent: host, width: 520, height: 720 } };
     wc.loadURL(url); return { action: "deny" };
   });
@@ -170,8 +171,11 @@ function place(rect) {
 function show() { if (host && !host.isDestroyed()) host.webContents.send("browser-show"); }
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// Le navigateur de l'agent n'ouvre que des pages web : jamais file://, ni un autre protocole, même si une annonce ou l'agent le demande
+const web = url => { if (!/^https?:\/\//i.test(String(url || ""))) throw new Error("Adresse refusée : seules les pages web (http, https) s'ouvrent ici."); return String(url); };
 
 async function open(url) {
+  url = web(url);
   const w = browser();
   await w.webContents.loadURL(url).catch(() => {});
   await wait(2500);                                             // laisser la page finir de s'afficher, comme une personne
@@ -221,7 +225,7 @@ async function scanSearch(url, pages = 1, jamaisVue = null) {
 }
 async function lirePage(v, url) {
   {
-    await v.webContents.loadURL(url);
+    await v.webContents.loadURL(web(url));
     await wait(2500);
     const r = await v.webContents.executeJavaScript(`(() => {
       let ads = null;
@@ -340,4 +344,4 @@ function startMcp(ctx) {
 function badge(map) { view?.webContents.executeJavaScriptInIsolatedWorld(999, [{ code: BADGES(map) }]).catch(() => {}); }
 
 module.exports = { init, place, show, badge, scanSearch, // ouverte depuis la liste : l'annonce devient la première page de l'onglet (« retour » ramène alors aux annonces)
-  load: url => view?.webContents.loadURL(url).then(() => { view.webContents.navigationHistory.clear(); tell(); }).catch(() => {}), back: () => view?.webContents.navigationHistory.goBack(), startMcp };
+  load: url => /^https?:\/\//i.test(String(url || "")) && view?.webContents.loadURL(url).then(() => { view.webContents.navigationHistory.clear(); tell(); }).catch(() => {}), back: () => view?.webContents.navigationHistory.goBack(), startMcp };

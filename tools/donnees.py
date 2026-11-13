@@ -114,6 +114,13 @@ def annonces(con) -> list:
     return [json.loads(r["data"]) for r in con.execute("SELECT data FROM annonces ORDER BY rang DESC")]
 
 
+def _nombre(x):
+    try:
+        return round(float(str(x).replace(",", ".").replace(" ", "").replace("€", "")), 2) if x not in (None, "") else None
+    except ValueError:
+        return None
+
+
 def ajouter_annonces(con, lot: list) -> int:
     """Ajoute en tête les annonces jamais vues (le lot est déjà enrichi par tools/append.js)."""
     top = con.execute("SELECT COALESCE(MAX(rang), 0) FROM annonces").fetchone()[0]
@@ -122,6 +129,7 @@ def ajouter_annonces(con, lot: list) -> int:
         if con.execute("SELECT 1 FROM annonces WHERE url = ?", (norm(a["u"]),)).fetchone():
             continue
         n += 1
+        a = {**a, "p": _nombre(a.get("p"))}   # le prix vient d'une page web : un nombre, ou rien
         con.execute("INSERT INTO annonces VALUES (?, ?, ?, ?)",
                     (norm(a["u"]), top + n, json.dumps(a, ensure_ascii=False), a.get("added") or now()))
     con.commit()

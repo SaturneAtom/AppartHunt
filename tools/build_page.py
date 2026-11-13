@@ -53,16 +53,22 @@ def render(md: str) -> str:
     return "\n".join(out)
 
 
+def js(obj) -> str:
+    """JSON à poser dans une balise <script> : un texte d'annonce ne doit jamais pouvoir la fermer."""
+    return (json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e")
+            .replace("&", "\\u0026").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
+
+
 def main():
     annonces = base.annonces(base.connect()) or json.loads((root / "examples" / "annonces.example.json").read_text(encoding="utf-8"))
     doc = render(pick("recherche.md", "recherche.example.md").read_text(encoding="utf-8"))
     profil = json.loads(pick("profil.json", "profil.example.json").read_text(encoding="utf-8"))
     zone = json.loads(pick("zone.json", "zone.example.json").read_text(encoding="utf-8"))
     contraintes = (f'<template id="doctpl">\n{doc}\n</template>\n'
-                   f'<script id="profil">window.PROFIL = {json.dumps(profil, ensure_ascii=False)};\n'
-                   f'window.ZONE = {json.dumps(zone, ensure_ascii=False)};</script>')
+                   f'<script id="profil">window.PROFIL = {js(profil)};\n'
+                   f'window.ZONE = {js(zone)};</script>')
     donnees = ('<script id="data">\nwindow.ANNONCES = [\n'
-               + ",\n".join(json.dumps(a, ensure_ascii=False) for a in annonces) + "\n];\n</script>")
+               + ",\n".join(js(a) for a in annonces) + "\n];\n</script>")
     page = (root / "page" / "template.html").read_text(encoding="utf-8")
     page = page.replace("%%CONTRAINTES%%", contraintes).replace("%%DONNEES%%", donnees)
     page = page.replace("%%ZONE%%", html.escape(zone.get("nom") or "Ta zone"))
