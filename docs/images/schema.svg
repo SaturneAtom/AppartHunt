@@ -12,29 +12,29 @@
   </defs>
   <rect width="880" height="340" rx="16" fill="#f6f8fa"/>
 
-  <!-- entrées -->
+  <!-- inputs -->
   <rect class="b" x="30" y="50" width="200" height="60" rx="12"/>
-  <text class="t" x="130" y="76">Tes mots</text><text class="s" x="130" y="96">recherche.md</text>
+  <text class="t" x="130" y="76">Your words</text><text class="s" x="130" y="96">recherche.md</text>
   <rect class="b" x="30" y="150" width="200" height="60" rx="12"/>
-  <text class="t" x="130" y="176">La veille</text><text class="s" x="130" y="196">toutes les 30 minutes</text>
+  <text class="t" x="130" y="176">The watcher</text><text class="s" x="130" y="196">every 30 minutes</text>
 
-  <!-- cerveau -->
+  <!-- brain -->
   <rect x="320" y="100" width="210" height="60" rx="12" fill="#1f2328"/>
-  <text class="t" x="425" y="126" style="fill:#ffffff">Claude Code</text><text class="s" x="425" y="146" style="fill:#d0d7de">le cerveau, en local</text>
+  <text class="t" x="425" y="126" style="fill:#ffffff">Claude Code</text><text class="s" x="425" y="146" style="fill:#d0d7de">the brain, running locally</text>
 
   <!-- actions -->
   <rect class="b" x="620" y="30" width="230" height="60" rx="12"/>
-  <text class="t" x="735" y="56">Outils Python</text><text class="s" x="735" y="76">chercher · lire · noter · retenir</text>
+  <text class="t" x="735" y="56">Python tools</text><text class="s" x="735" y="76">search · read · score · remember</text>
   <rect class="b" x="620" y="130" width="230" height="60" rx="12"/>
-  <text class="t" x="735" y="156">Navigateur de l'appli</text><text class="s" x="735" y="176">ta session, au rythme d'une personne</text>
+  <text class="t" x="735" y="156">The app's browser</text><text class="s" x="735" y="176">your session, at a human pace</text>
 
-  <!-- données et écran -->
+  <!-- data and screen -->
   <rect class="b" x="620" y="250" width="230" height="60" rx="12"/>
-  <text class="t" x="735" y="276">Base SQLite locale</text><text class="s" x="735" y="296">annonces · notes · mémoire</text>
+  <text class="t" x="735" y="276">Local SQLite database</text><text class="s" x="735" y="296">listings · scores · memory</text>
   <rect x="320" y="250" width="210" height="60" rx="12" fill="#ffffff" stroke="#1a7f37" stroke-width="1.8"/>
-  <text class="t" x="425" y="276">Appli de bureau</text><text class="s" x="425" y="296">liste · carte · fiches</text>
+  <text class="t" x="425" y="276">Desktop app</text><text class="s" x="425" y="296">list · map · details</text>
 
-  <!-- flèches -->
+  <!-- arrows -->
   <path class="l" d="M230 80 C 275 80, 275 120, 318 124"/>
   <path class="l" d="M230 180 C 275 180, 275 140, 318 136"/>
   <path class="l" d="M530 122 C 575 118, 575 60, 618 60"/>
@@ -43,6 +43,6 @@
   <path class="l" d="M850 60 C 872 60, 872 280, 852 280"/>
   <path class="l" d="M620 280 L 532 280"/>
   <path class="l" d="M425 250 L 425 162"/>
-  <rect x="436" y="196" width="78" height="22" rx="11" fill="#dafbe1"/>
-  <text x="475" y="211" font-size="12.5" fill="#1a7f37" text-anchor="middle" font-weight="600">tu valides</text>
+  <rect x="431" y="196" width="88" height="22" rx="11" fill="#dafbe1"/>
+  <text x="475" y="211" font-size="12.5" fill="#1a7f37" text-anchor="middle" font-weight="600">you approve</text>
 </svg>
