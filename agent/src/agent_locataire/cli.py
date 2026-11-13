@@ -15,7 +15,7 @@ def cmd_run(args):
 def cmd_tool(args):
     """Appelle un outil et affiche son résultat JSON (utilisé par le skill Claude Code)."""
     import uuid
-    from .tools import BY_NAME, NEEDS_BROWSER, Session
+    from .tools import BY_NAME, NEEDS_BROWSER, Session, verifier
     fn = BY_NAME.get(args.name)
     if not fn:
         raise SystemExit(f"Outil inconnu : {args.name}. Outils : {', '.join(BY_NAME)}")
@@ -28,6 +28,9 @@ def cmd_tool(args):
             raise SystemExit(f"Fichier refusé : {f} (seulement un .json du dossier de recherche ou du projet)")
         raw = f.read_text(encoding="utf-8")
     params = json.loads(raw)
+    if (err := verifier(args.name, params)):
+        print(json.dumps(err, ensure_ascii=False))
+        return
     Session.con, Session.run_id = db.connect(), args.run or uuid.uuid4().hex[:8]
     db.log(Session.con, Session.run_id, "outil", {"nom": args.name, "entree": params})
     if args.name in NEEDS_BROWSER:

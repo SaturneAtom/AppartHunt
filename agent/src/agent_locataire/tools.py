@@ -35,6 +35,18 @@ def _nombre(x):
         return None
 
 
+def verifier(name: str, params: dict):
+    """Refuse une entrée invalide AVANT d'ouvrir le navigateur (rien ne part vers un site avec un identifiant ou un nombre faux)."""
+    if name in ("read_listing", "like_listing") and not _ref(params.get("listing_id")):
+        return {"erreur": "identifiant attendu : leboncoin:<numéro>"}
+    if name == "search_listings":
+        try:
+            [int(params.get(k, 1)) for k in ("max_price", "rooms_min", "rooms_max")]
+        except (TypeError, ValueError):
+            return {"erreur": "max_price, rooms_min et rooms_max doivent être des nombres entiers"}
+    return None
+
+
 def _out(obj) -> str:
     return json.dumps(obj, ensure_ascii=False)
 
