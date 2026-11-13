@@ -1,6 +1,6 @@
 #!/bin/sh
 # Garde-fou : refuse tout commit qui contient des pièces du dossier locataire ou des données perso.
-bad=$(git diff --cached --name-only | grep -E '^(ma-recherche/|dossier/pieces/|dossier/profil\.txt|data/|agent/data/|recherche\.md$|profil\.json$|zone\.json$|annonces\.md$|selection\.html$|choix\.json$|resumes\.json$|ecran\.json$|journal\.json$)|\.(pdf|jpe?g|png|heic)$' | grep -v -E '^(examples|app/icon)/')
+bad=$(git diff --cached --name-only | grep -E '^(ma-recherche/|dossier/pieces/|dossier/profil\.txt|data/|agent/data/|recherche\.md$|profil\.json$|zone\.json$|annonces\.md$|selection\.html$|choix\.json$|resumes\.json$|ecran\.json$|journal\.json$)|\.(pdf|jpe?g|png|heic)$' | grep -v -E '^(examples|app/icon|docs/images)/')
 if [ -n "$bad" ]; then
   echo "Commit refusé : ces fichiers sont personnels et ne doivent pas partir sur GitHub :"
   echo "$bad"

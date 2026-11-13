@@ -903,7 +903,7 @@ window.apparthunt.onPlan((chat, etapes) => {
   let el = turn.querySelector(".plan");
   if (!el) { el = document.createElement("div"); el.className = "plan"; turn.prepend(el); }
   const done = etapes.filter(e => e.etat === "fait").length;
-  el.innerHTML = `<div class="ph">Plan <b>${done} / ${etapes.length}</b></div><div class="bar"><i style="width:${etapes.length ? 100 * done / etapes.length : 0}%"></i></div>
+  el.innerHTML = `<div class="plh">Plan <b>${done} / ${etapes.length}</b></div><div class="bar"><i style="width:${etapes.length ? 100 * done / etapes.length : 0}%"></i></div>
     <ol>${etapes.map(e => `<li class="${esc(e.etat)}"><span>${e.etat === "fait" ? "✓" : ""}</span>${esc(e.texte)}</li>`).join("")}</ol>`;
   const now = etapes.find(e => e.etat === "en_cours");
   if (now && runChat === activeChat) $("stateS").textContent = now.texte;
