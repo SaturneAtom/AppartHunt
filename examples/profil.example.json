@@ -1,0 +1,64 @@
+{
+  "_source": "Tiré de recherche.md par l'agent. Ne pas modifier à la main : modifie recherche.md, l'agent met ce fichier à jour.",
+  "budget_cible": 800,
+  "budget_max": 1000,
+  "types_acceptes": [
+    "T2",
+    "studio",
+    "T3",
+    "maison"
+  ],
+  "type_prefere": "T2",
+  "surface_min_studio": 30,
+  "veut_chambre_separee": true,
+  "quartiers_preferes": [
+    "Chartrons",
+    "Saint-Pierre",
+    "Saint-Seurin",
+    "Caudéran",
+    "Le Bouscat"
+  ],
+  "quartiers_ok": [
+    "Saint-Michel",
+    "Bastide",
+    "Nansouty",
+    "Saint-Augustin",
+    "Talence",
+    "Bègles",
+    "Mérignac",
+    "Pessac"
+  ],
+  "quartiers_non": [
+    "Belcier"
+  ],
+  "indispensable": {
+    "bail_classique": true,
+    "pas_rez_de_chaussee": true,
+    "pas_dpe_g": true
+  },
+  "important": {
+    "parking": true,
+    "non_meuble": true,
+    "cuisine_equipee": true,
+    "eviter_dpe_f": true
+  },
+  "bonus": {
+    "exterieur": true,
+    "lumiere": true
+  },
+  "egal": [
+    "ascenseur",
+    "duree_du_bail",
+    "trajet",
+    "transports"
+  ],
+  "poids": {
+    "lieu": 30,
+    "prix": 25,
+    "surface": 15,
+    "etat": 10,
+    "parking": 10,
+    "exterieur": 5,
+    "non_meuble": 5
+  }
+}

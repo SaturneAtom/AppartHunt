@@ -1,0 +1,14 @@
+{
+  "name": "apparthunt",
+  "productName": "AppartHunt",
+  "version": "0.1.0",
+  "description": "Appli de bureau d'AppartHunt : le chat avec l'agent et les annonces au même endroit.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.1"
+  }
+}

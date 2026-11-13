@@ -1,0 +1,19 @@
+[project]
+name = "agent-locataire"
+version = "0.1.0"
+description = "Agent IA qui cherche un appartement à ta place : il trouve, note, inspecte les photos et prépare les candidatures."
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.116",
+    "playwright>=1.48",
+]
+
+[project.scripts]
+agent-locataire = "agent_locataire.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_locataire"]

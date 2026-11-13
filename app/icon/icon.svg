@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- AppartHunt : une maison, et le point vert du « oui » de l'agent -->
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2b30"/>
+      <stop offset="1" stop-color="#0f0f11"/>
+    </linearGradient>
+    <linearGradient id="vert" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#fond)"/>
+  <path d="M512 292 L738 480 V712 a36 36 0 0 1 -36 36 H322 a36 36 0 0 1 -36 -36 V480 Z" fill="#f5f5f4" stroke="#f5f5f4" stroke-width="44" stroke-linejoin="round"/>
+  <rect x="462" y="584" width="100" height="186" rx="26" fill="#18181b"/>
+  <circle cx="708" cy="318" r="86" fill="url(#vert)" stroke="#18181b" stroke-width="30"/>
+</svg>

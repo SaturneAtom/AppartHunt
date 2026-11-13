@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AppartHunt</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout : en-tête + onglets, filtres à gauche (repliés sur mobile), carte puis grandes cartes d'annonces */
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --fg:#1d2420; --muted:#5f6b64; --line:#dde2de;
+  --accent:#1f6f5c; --accent-soft:#e1efe9; --warn:#a45a12; --warn-soft:#f8ecdd; --love:#c8324a; --love-soft:#fbe8ec;
+  --top:#1f6f5c; --good:#2e8b57; --ok:#c98a1c; --low:#8a8f8c;
+  --display:"Fraunces", Georgia, serif; --body:"Instrument Sans", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#131715; --surface:#1c2220; --fg:#e8ece9; --muted:#9aa6a0; --line:#2d3532;
+  --accent:#5cc2a4; --accent-soft:#1d3a31; --warn:#e2a35e; --warn-soft:#3a2a18; --love:#ff6b82; --love-soft:#3a1d24;
+  --top:#5cc2a4; --good:#5cc28a; --ok:#e2a35e; --low:#8f9a95; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.55 var(--body)}
+.wrap{max-width:1360px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left,0px)) 64px max(16px,env(safe-area-inset-right,0px))}
+h1{font:600 clamp(28px,4vw,40px)/1.1 var(--display);margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 18px;max-width:62ch}
+button{font:inherit}
+.tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.tab{font-weight:600;font-size:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:999px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tab .n{opacity:.7;font-weight:500}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.openf{display:none;width:100%;font-weight:600;font-size:16px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;margin-bottom:12px}
+@media (max-width:900px){.openf{display:block}.panel:not(.open){display:none}}
+.panel{position:sticky;top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:20px}
+@media (max-width:900px){.panel{position:static}}
+.panel h2{font:600 15px var(--body);margin:0 0 8px}
+.big{font:600 22px var(--display);font-variant-numeric:tabular-nums;margin-bottom:2px}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-weight:500;font-size:15px;border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:8px 14px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.checks{display:flex;flex-direction:column;gap:10px}
+.checks label{display:flex;gap:10px;align-items:center;cursor:pointer}
+.checks input{accent-color:var(--accent);width:20px;height:20px}
+details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details[open] summary{margin-bottom:14px}
+details .more{display:flex;flex-direction:column;gap:16px}
+select{font:inherit;font-size:16px;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);width:100%}
+.reset{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0;align-self:flex-start}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+/* Carte */
+.mapbox{height:360px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;background:var(--accent-soft)}
+@media (max-width:600px){.mapbox{height:260px}}
+.leaflet-popup-content{margin:10px;font:15px/1.4 var(--body)}
+.pop img{width:210px;height:130px;object-fit:cover;border-radius:8px;display:block;margin-bottom:6px}
+.pin{border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);width:22px;height:22px}
+.pin.love{width:28px;height:28px;display:grid;place-items:center;color:#fff;font-size:14px}
+.pin.hot{outline:3px solid #1d2420;transform:scale(1.3)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:-8px 0 14px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.count{font-weight:600;margin:0 0 14px}
+/* Annonces */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.card.hot{box-shadow:0 0 0 3px var(--accent)}
+.photo{position:relative;aspect-ratio:4/3;background:var(--accent-soft);display:block}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo .none{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:15px}
+.label{position:absolute;top:12px;left:12px;font:600 14px var(--body);padding:5px 11px;border-radius:999px;color:#fff}
+.label.top{background:var(--top)}.label.good{background:var(--good)}.label.ok{background:var(--ok)}.label.low{background:var(--low)}
+.newb{position:absolute;top:12px;right:12px;font:600 13px var(--body);padding:5px 10px;border-radius:999px;background:var(--surface);color:var(--fg)}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px;flex:1}
+.price{font:600 28px var(--display);font-variant-numeric:tabular-nums;line-height:1}
+.price small{font:500 15px var(--body);color:var(--muted)}
+.where{font-weight:600;font-size:18px}
+.facts{display:flex;gap:8px;flex-wrap:wrap}
+.fact{background:var(--bg);border-radius:8px;padding:4px 10px;font-size:15px}
+.plus,.attn{margin:0;font-size:16px}
+.plus b{color:var(--accent)}.attn b{color:var(--warn)}
+.alert{font-size:15px;background:var(--warn-soft);color:var(--warn);padding:8px 10px;border-radius:8px}
+.actions{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.go{grid-column:1/-1;display:block;text-align:center;background:var(--accent);color:var(--surface);text-decoration:none;font-weight:600;padding:12px;border-radius:10px}
+.act{font-weight:600;font-size:15px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;border-radius:10px;cursor:pointer}
+.act.love[aria-pressed="true"]{background:var(--love-soft);border-color:var(--love);color:var(--love)}
+.act.no[aria-pressed="true"]{background:var(--bg);color:var(--muted)}
+.card.nope{opacity:.5}
+.from{font-size:13px;color:var(--muted)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:14px;grid-column:1/-1}
+.views{display:flex;gap:6px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+.view{font:600 17px var(--body);border:0;background:none;color:var(--muted);padding:10px 4px;margin-right:18px;border-bottom:3px solid transparent;cursor:pointer}
+.view[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.foryou{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:16px}
+.foryou li{display:flex;gap:8px;align-items:flex-start}
+.foryou .y{color:var(--accent);font-weight:700}.foryou .n{color:var(--warn);font-weight:700}
+.foryou .t{flex:1;min-width:0}
+.ftitle{font:600 14px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 -2px}
+.note{font-size:15px;color:var(--muted);margin:0;border-left:3px solid var(--line);padding-left:10px}
+.docwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;align-items:start}
+@media (max-width:900px){.docwrap{grid-template-columns:minmax(0,1fr)}}
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 28px 24px;max-width:72ch}
+.doc h2{display:none}.doc h3{font:600 22px var(--display);margin:26px 0 8px}
+.doc p,.doc li{font-size:17px}.doc ul{padding-left:22px;margin:6px 0}.doc li{margin:4px 0}
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:16px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.box h3{font:600 17px var(--body);margin:0 0 8px}.box p{margin:6px 0;font-size:16px}
+.understood{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;font-size:16px}
+.understood b{display:block;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:12px 18px;border-radius:12px;font-weight:600;z-index:3000;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mes appartements</h1>
+  <p class="sub">%%ZONE%%. Les annonces sont choisies et jugées selon « Mes contraintes et choix ». Clique sur ♥ quand une annonce te plaît.</p>
+
+  <div class="views" role="tablist">
+    <button class="view" role="tab" id="v-ads" aria-selected="true">Les annonces</button>
+    <button class="view" role="tab" id="v-doc" aria-selected="false">Mes contraintes et choix</button>
+  </div>
+  <section id="docview" hidden>
+    <div class="docwrap">
+      <article class="doc" id="doc"></article>
+      <aside class="side">
+        <div class="box"><h3>Comment le modifier</h3><p>Ce texte décide de ce que l'agent cherche et de la façon dont il juge chaque annonce.</p><p>Pour le changer, modifie le fichier <strong>recherche.md</strong>, ou dis simplement à Claude ce qui a changé (« finalement je veux un parking obligatoire »). L'agent le relit avant chaque recherche.</p></div>
+        <div class="box"><h3>Ce que l'agent en a compris</h3><ul class="understood" id="understood"></ul></div>
+      </aside>
+    </div>
+  </section>
+  <div id="adsview">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-all" aria-selected="true">Toutes <span class="n" id="n-all"></span></button>
+    <button class="tab" role="tab" id="t-love" aria-selected="false">♥ Notre liste <span class="n" id="n-love"></span></button>
+    <button class="tab" role="tab" id="t-new" aria-selected="false">Nouvelles <span class="n" id="n-new"></span></button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <button class="openf" type="button" id="openf" aria-expanded="false">Filtrer les annonces</button>
+      <aside class="panel" id="panel" aria-label="Filtres">
+        <section>
+          <h2>Budget maximum (charges comprises)</h2>
+          <div class="big" id="pmaxv"></div>
+          <input type="range" id="pmax" min="500" max="1000" step="10" aria-label="Budget maximum">
+        </section>
+        <section><h2>Où ?</h2><div class="chips" id="cities"></div></section>
+        <section><h2>Quel logement ?</h2><div class="chips" id="types"></div></section>
+        <section class="checks">
+          <label><input type="checkbox" id="unf"> Vide (non meublé)</label>
+          <label><input type="checkbox" id="park"> Avec parking</label>
+          <label><input type="checkbox" id="out"> Avec balcon ou terrasse</label>
+        </section>
+        <details>
+          <summary>Plus de filtres</summary>
+          <div class="more">
+            <section><h2>Surface minimum</h2><div class="big" id="m2v"></div><input type="range" id="m2" min="20" max="80" step="1" aria-label="Surface minimum"></section>
+            <section><h2>Qualité minimum</h2><select id="lvl" aria-label="Qualité minimum">
+              <option value="0">Toutes les annonces</option><option value="65">Bien et mieux</option><option value="75">Très bien et mieux</option><option value="85">Coups de cœur seulement</option></select></section>
+            <section><h2>Trier par</h2><select id="sort" aria-label="Trier par">
+              <option value="s">Les meilleures d'abord</option><option value="p">Les moins chères d'abord</option><option value="m2">Les plus grandes d'abord</option><option value="added">Les plus récentes d'abord</option></select></section>
+            <section class="checks"><label><input type="checkbox" id="shownope"> Revoir les « Pas pour nous »</label></section>
+          </div>
+        </details>
+        <button class="reset" type="button" id="reset">Tout remettre à zéro</button>
+      </aside>
+    </div>
+    <main>
+      <div class="mapbox" id="map" role="region" aria-label="Carte des annonces"></div>
+      <div class="legend"><span><i style="background:var(--top)"></i>Coup de cœur</span><span><i style="background:var(--good)"></i>Très bien</span><span><i style="background:var(--ok)"></i>Bien</span><span><i style="background:var(--low)"></i>À voir</span><span>Positions approximatives</span></div>
+      <p class="count" id="count" aria-live="polite"></p>
+      <div class="grid" id="grid"></div>
+    </main>
+  </div>
+</div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+%%CONTRAINTES%%
+%%DONNEES%%
+<script>
+const A=(window.ANNONCES||[]);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store={get(k,d){try{const v=localStorage.getItem("bab2_"+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem("bab2_"+k,JSON.stringify(v))}catch(e){}}};
+const lastVisit=store.get("lastVisit",null);
+store.set("lastVisit",new Date().toISOString().slice(0,16));
+const isNew=a=>lastVisit?a.added>lastVisit:a.added>=new Date(Date.now()-864e5).toISOString().slice(0,16);
+const loved=new Set(store.get("loved",[])), nope=new Set(store.get("nope",[]));
+const MAXB=(window.PROFIL||{}).budget_max||1000, COEUR=((window.ZONE||{}).communes||[]).filter(c=>(c.cercle||1)===1).map(c=>c.nom);
+const DEF={tab:"all",pmax:MAXB,m2:20,lvl:0,sort:"s",cities:[],types:[],unf:false,park:false,out:false,shownope:false};
+let st={...DEF,...store.get("filters",{})};
+
+const LEVEL=s=>s>=85?["top","Coup de cœur"]:s>=75?["good","Très bien"]:s>=65?["ok","Bien"]:["low","À voir"];
+const TYPE={T2:"T2",studio:"Studio",T3:"T3",maison:"Maison"};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const floorOf=a=>{const m=a.f.match(/(\d+)(?:er|e)\s*(?:ét|\/)|ét\.\s*(\d+)|(\d+)e et dernier/);const n=m&&(m[1]||m[2]||m[3]);return n?(n==="1"?"1er étage":n+"e étage"):null};
+const count=(k,v)=>A.filter(a=>a[k]===v).length;
+
+function chips(el,key,field,values,label=v=>v){
+  el.innerHTML=values.map(v=>`<button type="button" class="chip" aria-pressed="${st[key].includes(v)}" data-v="${esc(v)}">${esc(label(v))}</button>`).join("");
+  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const v=b.dataset.v;st[key]=st[key].includes(v)?st[key].filter(x=>x!==v):[...st[key],v];update()};
+}
+function list(){
+  return A.filter(a=>(st.tab!=="love"||loved.has(a.u))&&(st.tab!=="new"||isNew(a))
+    &&a.p<=st.pmax&&(a.m2||0)>=st.m2&&a.s>=st.lvl
+    &&(!st.cities.length||st.cities.includes(a.city))&&(!st.types.length||st.types.includes(a.type))
+    &&(!st.unf||a.furnished===false)&&(!st.park||a.parking)&&(!st.out||a.outdoor)
+    &&(st.shownope||st.tab==="love"||!nope.has(a.u)))
+   .sort((x,y)=>st.sort==="p"?x.p-y.p:st.sort==="m2"?(y.m2||0)-(x.m2||0):st.sort==="added"?y.added.localeCompare(x.added):y.s-x.s);
+}
+
+/* Carte */
+let map=null,layer=null;
+if(window.L){
+  map=L.map("map",{scrollWheelZoom:false}).setView([43.48,-1.52],11);
+  // Fond CARTO (données OpenStreetMap) : les serveurs OSM refusent les pages ouvertes en fichier local
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:19,subdomains:"abcd",attribution:"© OpenStreetMap contributors © CARTO"}).addTo(map);
+  layer=L.layerGroup().addTo(map);
+}else{$("map").innerHTML='<div class="empty">La carte n\'a pas pu se charger. Vérifie la connexion internet.</div>'}
+function drawMap(items){
+  if(!map)return;layer.clearLayers();
+  for(const a of items){
+    const [k]=LEVEL(a.s),lv=loved.has(a.u);
+    const icon=L.divIcon({className:"",html:`<div class="pin${lv?" love":""}" data-u="${esc(a.u)}" style="background:${lv?css("--love"):css("--"+k)}">${lv?"♥":""}</div>`,iconSize:lv?[28,28]:[22,22]});
+    L.marker([a.lat,a.lng],{icon}).addTo(layer)
+     .bindPopup(`<div class="pop">${a.img?`<img src="${esc(a.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}<b>${a.p} €</b> · ${esc(a.m2)} m²<br>${esc(a.w)}<br><a href="${esc(a.u)}" target="_blank" rel="noopener">Voir l'annonce</a></div>`)
+     .on("click",()=>{const c=document.querySelector(`.card[data-u="${CSS.escape(a.u)}"]`);if(c){c.scrollIntoView({behavior:"smooth",block:"center"});hot(a.u)}});
+  }
+}
+function hot(u){
+  document.querySelectorAll(".card.hot,.pin.hot").forEach(e=>e.classList.remove("hot"));
+  document.querySelector(`.card[data-u="${CSS.escape(u)}"]`)?.classList.add("hot");
+  document.querySelector(`.pin[data-u="${CSS.escape(u)}"]`)?.classList.add("hot");
+}
+
+/* « Pour toi » : chaque point est calculé à partir de profil.json (tiré de recherche.md) */
+const P=window.PROFIL||{budget_cible:800,budget_max:MAXB,quartiers_preferes:[],quartiers_ok:[],quartiers_non:[],important:{},bonus:{}};
+const has=(list,txt)=>list.find(q=>txt.toLowerCase().includes(q.toLowerCase()));
+function forYou(a){
+  const y=[],n=[],w=a.w||"",dpe=(a.f.match(/DPE ([A-G])/)||[])[1];
+  const pref=has(P.quartiers_preferes,w),ok=has(P.quartiers_ok,w),non=has(P.quartiers_non,w);
+  const place=w.split(" — ").slice(0,2).join(", ");
+  if(non)n.push(`${place} : tu as dit « plutôt non » à ce secteur`);
+  else if(pref)y.push(`${place} : un de tes quartiers préférés`);
+  else if(ok)y.push(`${place} : un secteur qui te va`);
+  else n.push(`${place} : en dehors des zones que tu as listées`);
+  const d=a.p-P.budget_cible;
+  if(d<=-50)y.push(`${-d} € de moins que ton budget idéal (${P.budget_cible} €)`);
+  else if(d<=20)y.push(`Pile dans ton budget idéal`);
+  else n.push(`${d} € au-dessus de ton budget idéal, mais sous ton maximum de ${P.budget_max} €`);
+  if(a.type==="studio")n.push("Studio : pas de chambre séparée, alors que tu en veux une");
+  else if(a.type==="T3")y.push("T3 : une vraie chambre et une pièce en plus");
+  else if(a.type==="maison")n.push("Maison : vérifie qu'elle n'est pas de plain-pied, tu ne veux pas de rez-de-chaussée");
+  else if(a.m2>=45)y.push(`${String(a.m2).replace(".",",")} m² : spacieux pour un T2`);
+  else if(a.m2&&a.m2<35)n.push(`${String(a.m2).replace(".",",")} m² : petit pour un T2`);
+  if(P.important.parking)(a.parking?y.push("Parking : c'est important pour toi, il y en a un"):n.push("Pas de parking indiqué, c'est important pour toi"));
+  if(P.important.non_meuble){if(a.furnished===false)y.push("Vide, comme tu préfères");else if(a.furnished)n.push("Meublé, alors que tu préfères vide")}
+  if(P.bonus.exterieur&&a.outdoor)y.push("Balcon ou terrasse : ton petit plus");
+  if(dpe==="F"&&P.important.eviter_dpe_f)n.push("DPE F : tu voulais éviter (et interdit à la location dès 2028)");
+  else if(dpe&&"ABC".includes(dpe))y.push(`Bon DPE (${dpe}) : factures légères`);
+  return {y,n};
+}
+const AGENT_NOTE=/dossier|arnaque|même appartement|sans doute|plain-pied|mansard|bail|honoraires|loin|excentré/i;
+
+/* Annonces */
+function card(a){
+  const [k,txt]=LEVEL(a.s), fl=floorOf(a), lv=loved.has(a.u), no=nope.has(a.u);
+  const low=a.m2&&COEUR.includes(a.city)&&a.p/a.m2<11;   // prix au m² suspect dans le premier cercle de la zone
+  const facts=[a.m2?`${String(a.m2).replace(".",",")} m²`:null,TYPE[a.type],fl,a.furnished===false?"Vide":a.furnished?"Meublé":null].filter(Boolean);
+  return `<article class="card${no?" nope":""}" data-u="${esc(a.u)}">
+    <a class="photo" href="${esc(a.u)}" target="_blank" rel="noopener" aria-label="Voir l'annonce ${esc(a.w)}">
+      ${a.img?`<img src="${esc(a.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:""}
+      <span class="none">Photos sur l'annonce</span>
+      <span class="label ${k}">${txt}</span>${isNew(a)?'<span class="newb">Nouveau</span>':""}
+    </a>
+    <div class="body">
+      <div class="price">${a.p} € <small>par mois, charges comprises</small></div>
+      <div class="where">${esc(a.w)}</div>
+      <div class="facts">${facts.map(f=>`<span class="fact">${esc(f)}</span>`).join("")}</div>
+      ${low?'<div class="alert">Prix étonnamment bas : ne jamais envoyer d\'argent avant d\'avoir visité.</div>':""}
+      ${(()=>{const {y,n}=forYou(a);return `<div class="ftitle">Pour toi</div><ul class="foryou">${y.map(t=>`<li><span class="y" aria-label="oui">✓</span><span class="t">${esc(t)}</span></li>`).join("")}${n.map(t=>`<li><span class="n" aria-label="non">✗</span><span class="t">${esc(t)}</span></li>`).join("")}</ul>`})()}
+      ${a.con&&AGENT_NOTE.test(a.con)?`<p class="note">Note de l'agent : ${esc(a.con)}</p>`:""}
+      <div class="actions">
+        <button type="button" class="act love" data-act="love" aria-pressed="${lv}">${lv?"♥ On aime":"♡ On aime"}</button>
+        <button type="button" class="act no" data-act="nope" aria-pressed="${no}">${no?"Remettre":"✕ Pas pour nous"}</button>
+        <a class="go" href="${esc(a.u)}" target="_blank" rel="noopener">Voir l'annonce</a>
+      </div>
+      <span class="from">Annonce ${esc(a.site)}</span>
+    </div></article>`;
+}
+function update(){
+  store.set("filters",st);
+  for(const t of["all","love","new"])$("t-"+t).setAttribute("aria-selected",st.tab===t);
+  $("n-all").textContent=A.filter(a=>!nope.has(a.u)).length;$("n-love").textContent=loved.size;$("n-new").textContent=A.filter(isNew).length;
+  $("pmaxv").textContent=st.pmax>=MAXB?`Pas de limite (${MAXB.toLocaleString("fr-FR")} €)`:"Jusqu'à "+st.pmax+" €";
+  $("m2v").textContent=st.m2<=20?"Peu importe":"Au moins "+st.m2+" m²";
+  chips($("cities"),"cities","city",[...new Set(A.map(a=>a.city))].sort((x,y)=>count("city",y)-count("city",x)));
+  chips($("types"),"types","type",["T2","studio","T3","maison"].filter(t=>count("type",t)),v=>TYPE[v]);
+  const items=list();
+  $("count").textContent=items.length?`${items.length} appartement${items.length>1?"s":""}`:"";
+  $("grid").innerHTML=items.length?items.map(card).join(""):`<div class="empty">${st.tab==="love"?"Aucune annonce dans votre liste pour l'instant. Clique sur ♡ On aime sur une annonce pour l'ajouter ici.":st.tab==="new"?"Pas de nouvelle annonce depuis ta dernière visite.":"Aucune annonce avec ces filtres. Essaie d'augmenter le budget ou d'enlever une commune."}</div>`;
+  drawMap(items);
+}
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2500)}
+
+$("grid").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const u=b.closest(".card").dataset.u;
+  if(b.dataset.act==="love"){loved.has(u)?loved.delete(u):(loved.add(u),nope.delete(u));toast(loved.has(u)?"Ajoutée à votre liste ♥":"Retirée de votre liste")}
+  if(b.dataset.act==="nope"){nope.has(u)?nope.delete(u):(nope.add(u),loved.delete(u));toast(nope.has(u)?"On ne la montrera plus":"Annonce remise")}
+  store.set("loved",[...loved]);store.set("nope",[...nope]);update();
+});
+$("grid").addEventListener("mouseover",e=>{const c=e.target.closest(".card");if(c)hot(c.dataset.u)});
+for(const t of["all","love","new"])$("t-"+t).onclick=()=>{st.tab=t;update()};
+$("openf").onclick=()=>{const o=$("panel").classList.toggle("open");$("openf").setAttribute("aria-expanded",o);$("openf").textContent=o?"Masquer les filtres":"Filtrer les annonces"};
+$("pmax").oninput=e=>{st.pmax=+e.target.value;update()};
+$("m2").oninput=e=>{st.m2=+e.target.value;update()};
+$("lvl").onchange=e=>{st.lvl=+e.target.value;update()};
+$("sort").onchange=e=>{st.sort=e.target.value;update()};
+for(const k of["unf","park","out","shownope"])$(k).onchange=e=>{st[k]=e.target.checked;update()};
+function sync(){$("pmax").max=MAXB;$("pmax").value=st.pmax;$("m2").value=st.m2;$("lvl").value=st.lvl;$("sort").value=st.sort;for(const k of["unf","park","out","shownope"])$(k).checked=st[k]}
+$("reset").onclick=()=>{st={...DEF};sync();update();toast("Filtres remis à zéro")};
+function showView(v){
+  $("v-ads").setAttribute("aria-selected",v==="ads");$("v-doc").setAttribute("aria-selected",v==="doc");
+  $("adsview").hidden=v!=="ads";$("docview").hidden=v!=="doc";
+  if(v==="ads"&&map)setTimeout(()=>map.invalidateSize(),50);
+  store.set("view",v);
+}
+$("v-ads").onclick=()=>showView("ads");$("v-doc").onclick=()=>showView("doc");
+$("doc").innerHTML=$("doctpl")?.innerHTML||"<p>recherche.md n'est pas encore intégré à la page.</p>";
+$("understood").innerHTML=[
+  ["Budget",`idéal ${P.budget_cible} €, maximum ${P.budget_max} € charges comprises`],
+  ["Logement",`${P.type_prefere||"T2"} avec chambre séparée ; studio dès ${P.surface_min_studio||30} m², T3 ou maison possibles`],
+  ["Quartiers préférés",(P.quartiers_preferes||[]).filter(q=>!/centre|Hôtel/i.test(q)).join(", ")],
+  ["Plutôt non",(P.quartiers_non||[]).join(", ")],
+  ["Indispensable","bail classique, pas de rez-de-chaussée, pas de DPE G"],
+  ["Important","parking, non meublé, cuisine équipée, éviter DPE F"],
+  ["Petit plus","balcon ou terrasse, lumière"],
+  ["Ordre",Object.entries(P.poids||{}).map(([k,v])=>`${k.replace("_"," ")} ${v} %`).join(" · ")],
+].map(([k,v])=>`<li><b>${esc(k)}</b>${esc(v)}</li>`).join("");
+sync();update();showView(store.get("view","ads"));
+</script>
+</body>
+</html>

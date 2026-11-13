@@ -1,0 +1,24 @@
+# Tes données : elles restent sur ta machine (tout est dans ma-recherche/)
+ma-recherche/
+recherche.md
+profil.json
+zone.json
+annonces.md
+selection.html
+data/
+dossier/pieces/
+dossier/profil.txt
+dossier/dossier-locataire.pdf
+dossier/.build/
+agent/data/
+
+# Outils
+.venv/
+__pycache__/
+node_modules/
+.DS_Store
+.claude/scheduled_tasks.lock
+choix.json
+resumes.json
+ecran.json
+journal.json

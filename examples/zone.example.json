@@ -1,0 +1,31 @@
+{
+ "_aide": "La zone de recherche. Copie ce fichier en zone.json dans ton dossier de recherche et remplace les communes et les quartiers par les tiens. cp : code postal (sert aux recherches Leboncoin). bienici : identifiant de zone Bien'ici, donné par https://res.bienici.com/suggest.json?q=<commune> (champ zoneIds). cercle : 1 = cherché en priorité, 2 = si on a de la marge. note : ce que vaut l'endroit pour toi, de 0 à 10. Quartiers : motif = expression régulière cherchée dans le lieu de l'annonce ; le premier motif noté qui correspond donne la note, le premier qui a une position place l'annonce sur la carte.",
+ "nom": "Bordeaux et alentours",
+ "centre": [44.84, -0.58],
+ "communes": [
+  {"nom": "Bordeaux", "cp": "33000", "bienici": "-105270", "cercle": 1, "note": 7, "lat": 44.8378, "lng": -0.5792},
+  {"nom": "Talence", "cp": "33400", "bienici": "-105267", "cercle": 1, "note": 7, "lat": 44.8080, "lng": -0.5890},
+  {"nom": "Le Bouscat", "cp": "33110", "bienici": "-105283", "cercle": 1, "note": 8, "lat": 44.8650, "lng": -0.5990},
+  {"nom": "Bègles", "cp": "33130", "bienici": "-105278", "cercle": 1, "note": 6.5, "lat": 44.8080, "lng": -0.5480},
+  {"nom": "Mérignac", "cp": "33700", "bienici": "-105275", "cercle": 1, "note": 6, "lat": 44.8420, "lng": -0.6460},
+  {"nom": "Pessac", "cp": "33600", "bienici": "-105281", "cercle": 1, "note": 6, "lat": 44.8060, "lng": -0.6310},
+  {"nom": "Bruges", "cp": "33520", "bienici": "-105271", "cercle": 2, "note": 6, "lat": 44.8830, "lng": -0.6110},
+  {"nom": "Cenon", "cp": "33150", "bienici": "-88808", "cercle": 2, "note": 5, "lat": 44.8570, "lng": -0.5310},
+  {"nom": "Lormont", "cp": "33310", "bienici": "-88807", "cercle": 2, "note": 5, "lat": 44.8790, "lng": -0.5220},
+  {"nom": "Villenave-d'Ornon", "cp": "33140", "bienici": "-105273", "cercle": 2, "note": 5, "lat": 44.7810, "lng": -0.5670},
+  {"nom": "Gradignan", "cp": "33170", "bienici": "-105268", "cercle": 2, "note": 6, "lat": 44.7730, "lng": -0.6160},
+  {"nom": "Eysines", "cp": "33320", "bienici": "-105280", "cercle": 2, "note": 5, "lat": 44.8840, "lng": -0.6500}
+ ],
+ "quartiers": [
+  {"motif": "Chartrons", "commune": "Bordeaux", "note": 9, "lat": 44.8530, "lng": -0.5700},
+  {"motif": "Saint[- ]Pierre|Hôtel de Ville", "commune": "Bordeaux", "note": 9, "lat": 44.8400, "lng": -0.5720},
+  {"motif": "Saint[- ]Seurin|Fondaudège|Jardin Public", "commune": "Bordeaux", "note": 9, "lat": 44.8430, "lng": -0.5870},
+  {"motif": "Saint[- ]Michel|Capucins|Victoire", "commune": "Bordeaux", "note": 7, "lat": 44.8330, "lng": -0.5690},
+  {"motif": "Caud[ée]ran", "commune": "Bordeaux", "note": 8, "lat": 44.8490, "lng": -0.6090},
+  {"motif": "Bastide", "commune": "Bordeaux", "note": 7, "lat": 44.8420, "lng": -0.5550},
+  {"motif": "Saint[- ]Augustin", "commune": "Bordeaux", "note": 7, "lat": 44.8330, "lng": -0.6010},
+  {"motif": "Nansouty|Saint[- ]Gen[èe]s", "commune": "Bordeaux", "note": 7.5, "lat": 44.8250, "lng": -0.5800},
+  {"motif": "Bacalan|Bassins [àa] flot", "commune": "Bordeaux", "note": 6, "lat": 44.8660, "lng": -0.5550},
+  {"motif": "Belcier|Euratlantique|Gare Saint[- ]Jean", "commune": "Bordeaux", "note": 5, "lat": 44.8240, "lng": -0.5560}
+ ]
+}
