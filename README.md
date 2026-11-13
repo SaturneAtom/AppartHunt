@@ -46,14 +46,14 @@ Tu écris ce que tu veux en français, comme à quelqu'un : budget, quartiers, c
 ## Comment c'est construit
 
 ```mermaid
-flowchart LR
-    A["recherche.md<br/>tes mots"] --> B["Claude Code<br/>le cerveau"]
-    V["Veille<br/>toutes les 30 min"] --> B
-    B --> T["Outils Python<br/>chercher · lire · noter<br/>décider · retenir"]
-    B --> N["Navigateur de l'appli<br/>ta session, au rythme<br/>d'une personne"]
-    T --> D[("SQLite<br/>locale")]
+flowchart TB
+    A["Tes mots · recherche.md"] --> B["Claude Code · le cerveau"]
+    V["Veille · toutes les 30 min"] --> B
+    B --> T["Outils Python · chercher, lire, noter, retenir"]
+    B --> N["Navigateur de l'appli · ta session"]
+    T --> D[("Base SQLite locale")]
     N --> D
-    D --> U["Appli de bureau<br/>liste · carte · fiches"]
+    D --> U["Appli de bureau · liste, carte, fiches"]
     U -- "tu valides" --> B
 ```
 
