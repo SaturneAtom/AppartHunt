@@ -1,0 +1,42 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Agent dependencies
+        run: |
+          cd agent && uv sync
+          uv run playwright install --with-deps chromium
+
+      - name: JavaScript syntax
+        run: for f in app/*.js tools/*.js docs/demo/*.js; do node --check "$f"; done
+
+      - name: Command-line tools, end to end
+        run: agent/.venv/bin/python -m unittest tests/test_outils.py -v
+
+      - name: Security of the UI against booby-trapped listings
+        run: agent/.venv/bin/python app/tests/securite.test.py
+
+      - name: The real UI with fake data
+        run: agent/.venv/bin/python app/tests/ecran.test.py
+
+      - name: Dependency audit (desktop app)
+        run: cd app && npm audit --audit-level=high
