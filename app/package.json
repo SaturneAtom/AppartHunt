@@ -5,7 +5,8 @@
   "description": "Appli de bureau d'AppartHunt : le chat avec l'agent et les annonces au même endroit.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "postinstall": "git -C .. config core.hooksPath .githooks || true"
   },
   "license": "MIT",
   "devDependencies": {

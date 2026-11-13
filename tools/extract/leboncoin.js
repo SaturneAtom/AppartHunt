@@ -1,4 +1,4 @@
-// Extraction complète d'une fiche Leboncoin, à exécuter dans la page de l'annonce (Claude in Chrome, javascript_tool).
+// Extraction complète d'une fiche Leboncoin, à exécuter dans la page de l'annonce (navigateur de l'appli, outil extraire_annonce).
 // Lit le JSON que la page embarque déjà (__NEXT_DATA__) : aucune requête supplémentaire vers le site.
 // Renvoie une chaîne JSON compacte ; les photos sont données par leur empreinte (40 caractères),
 // tools/save_fiche.py les retransforme en URL complètes.

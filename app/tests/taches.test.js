@@ -264,6 +264,10 @@ const TESTS = {
   },
 };
 
+// Un appel qui ne répond jamais vide la boucle de Node : sans ce garde-fou, le script sortirait en silence avec le code 0.
+let termine = false;
+process.on("exit", () => { if (!termine) { console.log("ÉCHEC : les tests se sont arrêtés avant la fin (un appel à Claude Code n'a jamais répondu)"); process.exitCode = 1; } });
+
 (async () => {
   const qui = process.argv.slice(2);
   let ko = 0;
@@ -277,5 +281,6 @@ const TESTS = {
   fs.rmSync(DIR, { recursive: true, force: true });
   fs.rmSync(PROJET, { recursive: true, force: true });
   console.log(ko ? `${ko} échec(s)` : "tout est passé");
+  termine = true;
   process.exit(ko ? 1 : 0);
 })();

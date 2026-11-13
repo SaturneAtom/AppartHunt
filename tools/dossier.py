@@ -1,7 +1,7 @@
 """Vérifie le dossier locataire et l'assemble en un seul PDF.
 
 Usage : python3 tools/dossier.py
-Pièces dans dossier/pieces/ (et dossier/pieces/garant/), nommées 1-identite, 2-domicile, ... (voir dossier/README.md).
+Pièces dans ma-recherche/dossier/pieces/ (et .../pieces/garant/ ; APPARTHUNT_WORKSPACE pour un autre dossier), nommées 1-identite, 2-domicile, ... (voir dossier/README.md).
 Utilise les outils macOS : sips (image → PDF), cupsfilter (page de garde), join (fusion).
 """
 import datetime, os, pathlib, subprocess, sys

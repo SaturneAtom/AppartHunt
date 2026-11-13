@@ -1,4 +1,4 @@
-"""Convertit les lignes compactes produites dans Chrome (window._cmp) en lot pour ajout.py.
+"""Convertit les lignes compactes relevées dans une page de résultats (window._cmp) en lot pour ajout.py.
 
 Ligne : [note, prix, ville, quartier, pieces, m2, etage, meuble(0/1), dpe, parking(0/1), ext(0/1/2), img, id]
 Usage : python3 tools/cmp2lot.py cmp.json lot.json

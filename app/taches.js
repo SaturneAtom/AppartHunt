@@ -61,7 +61,7 @@ function creer({ store, options, cwd, env = process.env, emit = () => {}, consig
     if (q) { q(m.demande); return { ok: true, mode: "question" }; }
     const r = runs.get(id);
     if (r && !r.fermeture && !r.stopDemande) {      // en cours : elle le lit à sa prochaine étape
-      r.nonLus.push(m); c.nonLus = r.nonLus; noterObjets(c, m); if (m.de) r.transmis = true; store.save();
+      r.nonLus.push(m); c.nonLus = r.nonLus; noterObjets(c, m); if (m.de) r.transmis = true; if (!m.auto) r.auto = false; store.save();
       try { ecrire(r, m.prompt); } catch (err) { /* processus tombé : le message reste non lu, la fin du processus s'en occupe */ }
       return { ok: true, mode: "lu" };
     }
@@ -122,7 +122,7 @@ function creer({ store, options, cwd, env = process.env, emit = () => {}, consig
     }
     c.cwd = c.cwd || cwd;
     c.etat = "en_cours"; c.arrete = false; c.erreur = null; c.maj = Date.now();
-    const r = { chat: c, nonLus: messages, proc: spawn(bin, args, { cwd: c.cwd, env }), fermeture: false, stopDemande: false, vu: false, finie: false, erreurs: "", resultat: null, transmis: messages.some(m => m.de), essais: c.essais || 0 };
+    const r = { chat: c, nonLus: messages, proc: spawn(bin, args, { cwd: c.cwd, env }), fermeture: false, stopDemande: false, vu: false, finie: false, erreurs: "", resultat: null, transmis: messages.some(m => m.de), auto: messages.every(m => m.auto), essais: c.essais || 0 };
     c.nonLus = r.nonLus;
     runs.set(c.id, r);
     store.save();

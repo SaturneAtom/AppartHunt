@@ -12,6 +12,20 @@ dossier/dossier-locataire.pdf
 dossier/.build/
 agent/data/
 
+# Images, PDF, bases et journaux : jamais, sauf les captures et icônes du dépôt
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.webp
+*.db
+*.sqlite
+*.jsonl
+!docs/images/**
+!app/icon/**
+!examples/**
+
 # Outils
 .venv/
 __pycache__/

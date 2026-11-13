@@ -236,6 +236,10 @@ def main():
         print(json.dumps({"annonce": json.loads(an["data"]) if an else None, "fiche": json.loads(f["data"]) if f else None},
                          ensure_ascii=False, indent=1))
     elif cmd == "annonces-ajout":
+        if a[1:] not in ([], ["-"]):   # l'agent lance cet outil sans demander : seulement un .json du dossier de recherche
+            f = Path(a[1]).resolve()
+            if f.suffix != ".json" or not f.is_relative_to(WORKSPACE):
+                sys.exit(f"Fichier refusé : {f} (seulement un .json du dossier de recherche)")
         lot = json.loads(sys.stdin.read() if a[1:] in ([], ["-"]) else Path(a[1]).read_text(encoding="utf-8"))
         n = ajouter_annonces(con, lot)
         print(n, "ajoutées (", con.execute("SELECT COUNT(*) FROM annonces").fetchone()[0], "au total )")

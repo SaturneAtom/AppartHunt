@@ -162,11 +162,28 @@ class Outils(unittest.TestCase):
         outils = re.search(r"const OUTILS = \[(.*?)\];", src, re.S).group(1)
         cmds = re.findall(r'"([^"]+)"', outils)
         for c in cmds:
-            self.assertRegex(c, r"^(\./al|python3 tools/[a-z0-9_]+\.py|node tools/[a-z]+\.js)$", f"commande trop large sans demande : {c}")
+            self.assertRegex(c, r"^(\./al (tool|log)|python3 tools/[a-z0-9_]+\.py|node tools/[a-z]+\.js)$", f"commande trop large sans demande : {c}")
+        self.assertNotIn("tools/dossier.py", outils, "assembler le dossier locataire en PDF, c'est à l'utilisateur de le lancer")
         sur = re.search(r"const ALLOWED_SUR = \[(.*?)\];", src, re.S).group(1)
-        for interdit in ['"Read"', '"Edit"', '"Write"', '"WebFetch"', "mcp__claude-in-chrome__*", "file_upload", "javascript_tool", "form_input"]:
+        for interdit in ['"Read"', '"Edit"', '"Write"', '"WebFetch"', "claude-in-chrome"]:
             self.assertNotIn(interdit, sur, f"{interdit} ne doit pas passer sans demande")
-        self.assertIn("dossier\", \"pieces", src.replace("'", '"'), "les pièces du dossier locataire sont interdites à l'agent")
+        interdits = re.search(r"const DISALLOWED = \[(.*?)\];", src, re.S).group(1)
+        self.assertIn('const DOSSIER = absolu(path.join(WORKSPACE, "dossier"))', src, "tout le dossier locataire est interdit, pas seulement les pièces")
+        self.assertNotIn("--chrome", src, "l'agent n'utilise pas le Chrome de l'utilisateur")
+        self.assertNotIn("claude-in-chrome", re.search(r"const ALLOWED_DEV = \[(.*?)\];", src, re.S).group(1))
+        for regle in ["Read(${DOSSIER})", "Edit(${DOSSIER})", "CLAUDE*.md", ".claude/**", "git push", "mcp__claude-in-chrome__*"]:
+            self.assertIn(regle, interdits, f"règle manquante : {regle}")
+        # « Toujours » : jamais un outil entier, jamais un interpréteur ou un lanceur
+        self.assertIn('if (tool !== "Bash") return null;', src)
+        for prog in ["python", "uvx?", "npx", "make", "g?awk", "find"]:
+            self.assertIn(prog, re.search(r"const prog = .*?\n(.*?)\n", src, re.S).group(1))
+
+    def test_36_donnees_annonces_ajout_hors_du_dossier_refuse(self):
+        dehors = pathlib.Path(tempfile.mkdtemp()) / "lot.json"
+        dehors.write_text('[{"u": "https://www.leboncoin.fr/ad/locations/1"}]', encoding="utf-8")
+        out = self.run_("python3", "tools/donnees.py", "annonces-ajout", str(dehors), code=1)
+        self.assertIn("refusé", out)
+        shutil.rmtree(dehors.parent)
 
     # ---------- veille ----------
     def test_40_veille_tri(self):

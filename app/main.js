@@ -48,18 +48,21 @@ const donnees = (...args) => JSON.parse(execFileSync("python3", [DONNEES, ...arg
 const absolu = p => "//" + path.resolve(p).replace(/^\//, "") + "/**";   // règle de permission sur un chemin absolu
 // Pas de « node --check » (--require charge un fichier), ni de git log / show / diff (--output écrit où il veut, --no-index lit
 // n'importe quel fichier) : ils passent par la carte. Seulement les outils du projet, qui ne lisent et n'écrivent que dans le dossier de recherche.
-const OUTILS = ["./al", "python3 tools/donnees.py", "python3 tools/suivi.py", "python3 tools/build_page.py", "python3 tools/ajout.py",
-  "python3 tools/cmp2lot.py", "python3 tools/dossier.py", "node tools/append.js"];
-// Claude in Chrome : naviguer, lire, cliquer (favoris) ; pas d'envoi de fichier, de formulaire rempli seul ni de JavaScript dans tes onglets
-const CHROME = ["tabs_context_mcp", "tabs_create_mcp", "tabs_close_mcp", "navigate", "read_page", "get_page_text", "find", "computer"].map(t => "mcp__claude-in-chrome__" + t);
+const OUTILS = ["./al tool", "./al log", "python3 tools/donnees.py", "python3 tools/suivi.py", "python3 tools/build_page.py", "python3 tools/ajout.py",
+  "python3 tools/cmp2lot.py", "node tools/append.js"];   // pas tools/dossier.py : il assemble tes pièces en un PDF, c'est à toi de le lancer
 const ALLOWED_SUR = [`Read(${absolu(REPO)})`, `Read(${absolu(WORKSPACE)})`, `Edit(${absolu(WORKSPACE)})`, "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch",
-  "mcp__navigateur__*", ...CHROME, ...OUTILS.map(c => `Bash(${c}:*)`), "Bash(git status)", "Bash(git status --short)"];
-const ALLOWED_DEV = ["Read", "Glob", "Grep", "Edit", "Write", "NotebookEdit", "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch", "WebFetch", "mcp__navigateur__*", "mcp__claude-in-chrome__*",
+  "mcp__navigateur__*", ...OUTILS.map(c => `Bash(${c}:*)`), "Bash(git status)", "Bash(git status --short)"];
+const ALLOWED_DEV = ["Read", "Glob", "Grep", "Edit", "Write", "NotebookEdit", "TodoWrite", "Task", "Skill", "ToolSearch", "WebSearch", "WebFetch", "mcp__navigateur__*",
   ...["./al", "python3", "node", "npm", "npx", "uv", "git status", "git diff", "git log", "git show", "git blame", "git branch", "ls", "cat", "head", "tail", "grep", "rg", "find", "wc", "cut", "sort", "uniq", "tr", "awk", "sed", "jq", "diff", "echo", "printf", "pwd", "stat", "file", "which", "date", "sleep", "mkdir"].map(c => `Bash(${c}:*)`)];
 const MODE_DEV = process.env.APPARTHUNT_MODE_DEV === "1";
 const ALLOWED = MODE_DEV ? ALLOWED_DEV : ALLOWED_SUR;
-const PIECES = absolu(path.join(WORKSPACE, "dossier", "pieces"));
-const DISALLOWED = ["Bash(git push:*)", `Read(${PIECES})`, `Edit(${PIECES})`, "mcp__claude-in-chrome__file_upload"];
+// Le dossier locataire en entier : les pièces, le PDF assemblé (dossier-locataire.pdf, .build/) et profil.txt.
+const DOSSIER = absolu(path.join(WORKSPACE, "dossier"));
+// Un CLAUDE.md ou un .claude/ écrit dans le dossier de recherche serait relu comme consigne par les sessions suivantes :
+// une injection deviendrait permanente. L'agent ne peut pas les écrire.
+const WS = "//" + path.resolve(WORKSPACE).replace(/^\//, "");
+const DISALLOWED = ["Bash(git push:*)", `Read(${DOSSIER})`, `Edit(${DOSSIER})`, `Edit(${WS}/**/CLAUDE*.md)`, `Edit(${WS}/**/.claude/**)`,
+  "mcp__claude-in-chrome__*"];   // l'agent n'utilise que le navigateur de l'appli, jamais ton Chrome
 let mcpConfig = null;   // fichier de config MCP du navigateur intégré (créé au démarrage)
 
 const APP_MODE = `Tu es Claude Code, dans la colonne de l'appli AppartHunt : le même que dans un terminal, avec les mêmes moyens (lire, modifier, lancer des commandes, chercher sur le web). Tu fais deux choses : trouver à l'utilisateur LE bon appartement, d'après recherche.md (ses contraintes et ses choix, la référence de tout), et faire évoluer cette appli, dont tu es le développeur.
@@ -72,7 +75,7 @@ Quand il demande un changement dans l'appli (« supprime la carte », « enlève
 - Reste dans ce qu'il a demandé. Ce que tu remarques à côté, dis-le en une ligne, sans y toucher.
 
 Tu travailles à la racine du projet (le code, ./al, tools/). Les fichiers de sa recherche sont dans ${ICI}/ : recherche.md, profil.json, ecran.json, dossier/, et la base agent/data/agent.db (que tu lis et écris seulement par tools/donnees.py et tools/suivi.py). Tu es son agent de recherche, pas un exécutant de recettes : tu réfléchis, tu t'adaptes à ce qu'il dit, tu prends des initiatives et tu l'informes. Ce qui suit vaut pour la recherche ; pour le code, c'est ce qui précède.
-L'utilisateur écrit ou dicte (dictée Superwhisper) : il peut y avoir des fautes, devine l'intention. Avant sa phrase, l'appli te donne ce qui est affiché à l'écran (annonces dans l'ordre, avec leur URL) : « celle-là », « la deuxième », « celle de Saint-Léon » renvoient à cette liste.
+L'utilisateur écrit ou dicte (dictée Superwhisper) : il peut y avoir des fautes, devine l'intention. Avant sa phrase, l'appli te donne ce qui est affiché à l'écran (annonces dans l'ordre, avec leur URL) : « celle-là », « la deuxième », « celle des Chartrons » renvoient à cette liste.
 Tu gardes le fil d'un message à l'autre dans ce chat : tu te souviens de ce qui a été dit et fait. Il peut t'écrire pendant que tu travailles ; son message t'arrive à ta prochaine étape.
 
 Reste large : il vaut mieux trop d'annonces qu'une annonce ratée. La note est une indication grossière, pas un couperet : c'est lui qui filtre ensuite. Tu proposes, il décide : chaque annonce que tu lis va dans sa liste avec ta note sur 10 et sa justification. Tu ne retires jamais une annonce de sa liste et tu ne la caches pas ; c'est lui qui garde ou écarte. Tu peux lui recommander d'écarter, en le disant.
@@ -96,7 +99,7 @@ Garde-fous (non négociables) :
 
 Référence (formats que l'appli lit) :
 - Fiche d'une annonce : chaque annonce lue ou dont on parle a sa fiche, enregistrée avec python3 tools/donnees.py fiche <URL> '<json>' (les champs donnés sont fusionnés avec ceux déjà là ; une liste [{"u": …, "verdict": …}, …] avec fiche - pour plusieurs d'un coup) : {"note": un entier de 0 à 10, ta note pour lui (8 et plus : à voir vite ; 5 à 7 : intéressante avec des réserves ; 4 et moins : peu adaptée ou hors d'un critère fixe ; pars du barème de score_listing ramené sur 10, puis ajuste avec ce que tu as lu), "resume": "UNE phrase de 15 mots maximum qui justifie la note, d'après recherche.md", "pour": ["2 à 4 points courts : ce qui fait monter la note"], "contre": ["1 à 3 points courts : ce qui la fait baisser"], "photos": [toutes, en grand], "details": {libellé court → valeur : loyer HC, charges, CC, dépôt, honoraires, loyer de référence, surface, pièces, chambres, étage, ascenseur, meublé, chauffage, cuisine, salle de bain, extérieur, parking, cave, DPE et GES, disponibilité, publiée le, annonceur, adresse ou quartier…}, "description": "le texte au mot près s'il est court, résumé fidèle en 5 à 8 phrases sinon, sans perdre un chiffre ni une condition"}.
-- Navigation : d'abord le navigateur de l'appli (mcp__navigateur__ : ouvrir_page, lire_page, annonces_page, extraire_annonce, cliquer, capture, afficher_navigateur). Sur une annonce : ouvrir_page puis extraire_annonce (sur Leboncoin tout est enregistré d'un coup ; ailleurs tu enregistres la fiche toi-même). Si le site bloque ce navigateur, passe par Claude in Chrome (mcp__claude-in-chrome__) ; si ça bloque aussi, arrête-toi et dis-le.
+- Navigation : d'abord le navigateur de l'appli (mcp__navigateur__ : ouvrir_page, lire_page, annonces_page, extraire_annonce, cliquer, capture, afficher_navigateur). Sur une annonce : ouvrir_page puis extraire_annonce (sur Leboncoin tout est enregistré d'un coup ; ailleurs tu enregistres la fiche toi-même). Si le site bloque ce navigateur, arrête-toi et dis-le.
 - L'écran est à toi, via ecran.json : {"vue": "liste"} · {"vue": "navigateur", "url": "<URL>"} · {"vue": "fiches", "annonces": ["<URL>", …]} (liste complète de ce qui doit être ouvert) · {"vue": "comparaison", "annonces": [...], "conclusion": "2 ou 3 phrases : laquelle tu prendrais et pourquoi"} (ouvre-la tout de suite, lis, puis réécris avec ta conclusion) · {"vue": "libre", "titre": "…", "html": "fragment simple sans script ; classes muted, ok, ko"} pour le reste (budget, classement, plan de visites…) · {"vue": "profil"}. Change la vue AVANT un long travail, pour qu'il voie que tu as compris. Quand l'onglet Navigateur est ouvert, « cet appart » = l'annonce de la page : réponds sans changer de vue, sauf demande contraire. L'appli réagit déjà seule aux phrases simples (« montre la 1 », « compare les deux », « ferme »).
 - Ordre de la liste : python3 tools/donnees.py ordre <URL> <URL> … (dans l'ordre voulu). Pour « classe-les », range d'après recherche.md (lieu, puis prix) et dis ta logique en une phrase.
 - Changement de critères : recherche.md d'abord, puis profil.json, puis python3 tools/build_page.py, puis revois les verdicts des fiches concernées ; consigne-le dans le journal (registre de l'onglet Profil) : python3 tools/donnees.py journal "avant → après" "sa raison, avec ses mots (vide sinon)".
@@ -316,7 +319,7 @@ const moteur = require("./taches").creer({
   // les options ne sont pas conservées par --resume : ce sont les mêmes à chaque lancement
   // une question peut attendre sa réponse longtemps : l'appel d'outil ne doit pas expirer
   env: { ...process.env, MCP_TOOL_TIMEOUT: String(24 * 3600e3) },
-  options: () => ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--replay-user-messages", "--chrome",
+  options: () => ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--replay-user-messages",
     ...(mcpConfig ? ["--mcp-config", mcpConfig] : []), ...(mcpConfig ? ["--permission-prompt-tool", "mcp__navigateur__autoriser"] : []), "--append-system-prompt", APP_MODE, "--allowedTools", ...ALLOWED, "--disallowedTools", ...DISALLOWED],
   consigneReprise: () => consigne("reprise"),
   questionDe: chat => { for (const [id, q] of questions) if (q.chat === chat.id) return texte => { questions.delete(id); q.resolve("Réponse de l'utilisateur : " + texte); }; return null; },
@@ -397,18 +400,23 @@ const COMPOSEE = /[;&|`$()<>\n]/;
 function cleAutorisation(tool, input) {
   // « Toujours » vaudrait pour tous les fichiers ou toutes les adresses : jamais pour écrire, ni pour aller chercher une page
   if (/^(Edit|Write|NotebookEdit|MultiEdit|WebFetch|Read|Glob|Grep)$/.test(tool)) return null;
-  if (tool !== "Bash") return tool;
+  if (tool !== "Bash") return null;   // un outil entier pour toujours : jamais
   const cmd = String(input?.command || "").trim(), mots = cmd.split(/\s+/);
   if (COMPOSEE.test(cmd) || /^(rm|rmdir|sudo)$/.test(mots[0]) || (mots[0] === "git" && /^(clean|reset|checkout)$/.test(mots[1]))) return null;
-  // un interpréteur ou un outil réseau peut tout faire : chaque appel se valide
-  if (/^(python3?|node|bash|sh|zsh|perl|ruby|osascript|curl|wget|nc|ssh|scp|open|env|xargs|eval|exec)$/.test(mots[0])) return null;
+  // un interpréteur, un lanceur ou un outil réseau peut tout faire : chaque appel se valide (/usr/bin/python3.12 compris)
+  const prog = path.basename(mots[0]);
+  if (/^(python[\d.]*|node|bash|sh|zsh|fish|perl|ruby|php|lua|osascript|curl|wget|nc|ssh|scp|rsync|open|env|xargs|eval|exec|source|\.|uvx?|npx|npm|pnpm|yarn|bun|deno|make|g?awk|find|git|sed|tee|dd|cp|mv|ln|chmod|crontab|launchctl|al|\.\/al)$/.test(prog)) return null;
+  // une commande qui lit un script ou un fichier du dossier de recherche (que l'agent peut réécrire sans demander) : chaque fois
+  if (mots.some(m => /\.(py|js|mjs|cjs|ts|sh|zsh|rb|pl|awk|mk)$/i.test(m) || /makefile/i.test(m) || m.includes(path.basename(WORKSPACE)) || m.includes(WORKSPACE))) return null;
   return "Bash=" + cmd;   // « Toujours » vaut pour cette commande exacte, pas pour tout le programme (sed -n ≠ sed -i)
 }
-const apercu = t => { t = String(t ?? ""); return t.length > 1200 ? t.slice(0, 1200) + `\n… (${t.length - 1200} caractères de plus)` : t; };
+const apercu = t => String(t ?? "");   // en entier : ce qui est caché ne peut pas être validé (la carte défile)
 const decritOutil = (tool, input) => tool === "Bash" ? `Je veux lancer cette commande${input?.description ? ` (${input.description})` : ""} :\n${String(input?.command || "").trim()}`
   : `Je veux utiliser ${tool.replace(/^mcp__([a-z0-9-]+)__/, "$1 · ")}${input?.file_path || input?.url ? ` : ${input.file_path || input.url}` : ""}`
     + (input?.new_string != null ? `\n\nRemplacer :\n${apercu(input.old_string)}\n\npar :\n${apercu(input.new_string)}` : "")
-    + (input?.content != null ? `\n\nContenu :\n${apercu(input.content)}` : "");
+    + (input?.content != null ? `\n\nContenu :\n${apercu(input.content)}` : "")
+    + (input?.new_string == null && input?.content == null && input && Object.keys(input).some(k => !["file_path", "url", "description"].includes(k))
+      ? `\n\nParamètres :\n${apercu(JSON.stringify(input, null, 1))}` : "");
 const CONV_TOOLS = [
   { name: "autoriser", description: "Réservé à Claude Code pour les demandes d'autorisation. Ne l'appelle pas toi-même.",
     inputSchema: { type: "object", properties: { tool_name: { type: "string" }, input: { type: "object" }, tool_use_id: { type: "string" } }, required: ["tool_name"] },
@@ -445,19 +453,20 @@ const CONV_TOOLS = [
     inputSchema: { type: "object", properties: { texte: { type: "string", description: "une phrase : ce que tu as remarqué ou ce que tu suggères" }, boutons: { type: "array", items: { type: "object", properties: { label: { type: "string", description: "2 à 4 mots" }, message: { type: "string", description: "ce qui t'est envoyé s'il clique" } }, required: ["label", "message"] } } }, required: ["texte", "boutons"] },
     run: p => { win?.webContents.send("proposition", chatActif(), p); return "Proposition affichée."; } },
   { name: "notifier", description: "Envoie une notification à l'utilisateur, même s'il n'est pas dans l'appli : pour une annonce qui vaut vraiment le coup (trouvée par la veille), ou ce qui ne peut pas attendre. Un clic ouvre l'annonce dans l'appli. Avec parcimonie.",
-    inputSchema: { type: "object", properties: { titre: { type: "string", description: "court, ex. « T2 Saint-Léon, 780 € »" }, texte: { type: "string", description: "une phrase : pourquoi c'est bien pour lui" }, url: { type: "string" } }, required: ["titre", "texte"] },
+    inputSchema: { type: "object", properties: { titre: { type: "string", description: "court, ex. « T2 Chartrons, 780 € »" }, texte: { type: "string", description: "une phrase : pourquoi c'est bien pour lui" }, url: { type: "string" } }, required: ["titre", "texte"] },
     run: ({ titre, texte, url }) => notify(titre, texte, url) },
   { name: "taches", description: "Liste toutes les tâches (les autres conversations avec l'agent : recherches, veille, chats) : identifiant, état, résultat entier, erreur, et si on peut encore leur écrire (repondable).",
     inputSchema: { type: "object", properties: {} },
-    run: () => JSON.stringify(moteur.taches(), null, 1) },
+    run: () => moteur.actif()?.auto ? "Refusé : une tâche automatique (veille) ne lit pas les autres conversations." : JSON.stringify(moteur.taches(), null, 1) },
   { name: "transmettre_a_tache", description: "Transmet un message à une autre tâche, seulement si l'utilisateur te le demande. En cours, elle le lit à sa prochaine étape ; sinon elle reprend avec tout son contexte, quand c'est son tour. Elle peut refuser (session trop ancienne, autre tâche sur la même annonce) : dis-le-lui.",
     inputSchema: { type: "object", properties: { id: { type: "string", description: "son identifiant, donné par taches" }, message: { type: "string" } }, required: ["id", "message"] },
     run: ({ id, message }) => {
       const r = moteur.actif();
+      if (!r || r.auto) return "Refusé : seule une conversation que l'utilisateur mène peut transmettre un message.";
       if (r?.chat.id === id) return "Refusé : c'est ta propre tâche.";
       if (r?.transmis) return "Refusé : tu travailles déjà sur un message transmis par une autre tâche, pas de relais en chaîne. Dis à l'utilisateur ce qu'il reste à transmettre.";
       const de = r?.chat.titre || "une autre conversation";
-      const out = moteur.repondre(id, { demande: `Transmis depuis « ${de} » : ${message}`, prompt: `[Message transmis depuis la conversation « ${de} », à la demande de l'utilisateur]\n${message}`, de: r?.chat.id || "?" });
+      const out = moteur.repondre(id, { demande: `Transmis depuis « ${de} » : ${message}`, prompt: `[Message transmis depuis la conversation « ${de} » (écrit par l'agent de cette conversation, pas par l'utilisateur)]\n${message}`, de: r?.chat.id || "?" });
       return out.ok ? (out.mode === "lu" ? "Transmis : elle le lira à sa prochaine étape." : "Transmis : elle reprendra quand ce sera son tour (dès que tu auras fini).") : "Refusé : " + out.error;
     } },
 ];

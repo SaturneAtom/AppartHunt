@@ -1,15 +1,15 @@
 # Dossier locataire
 
-Dépose tes pièces dans `dossier/pieces/` (PDF, JPG ou PNG) en les nommant comme ci-dessous, puis lance :
+Dépose tes pièces dans `ma-recherche/dossier/pieces/` (PDF, JPG ou PNG) en les nommant comme ci-dessous, puis lance :
 
 ```
 python3 tools/dossier.py
 ```
 
-Le script vérifie ce qui manque et fabrique `dossier/dossier-locataire.pdf` (page de garde + pièces dans l'ordre).
+Le script vérifie ce qui manque et fabrique `ma-recherche/dossier/dossier-locataire.pdf` (page de garde + pièces dans l'ordre).
 **Ce dossier n'est jamais poussé sur GitHub** (il est dans `.gitignore`).
 
-## Tes pièces — `dossier/pieces/`
+## Tes pièces — `ma-recherche/dossier/pieces/`
 
 | Fichier | Pièce |
 |---|---|
@@ -19,11 +19,11 @@ Le script vérifie ce qui manque et fabrique `dossier/dossier-locataire.pdf` (pa
 | `4-salaire-1`, `4-salaire-2`, `4-salaire-3` | 3 derniers bulletins de salaire |
 | `5-impots` | Dernier avis d'imposition |
 
-## Garant — `dossier/pieces/garant/`
+## Garant — `ma-recherche/dossier/pieces/garant/`
 
 Soit **Visale** (gratuit, Action Logement) : un seul fichier `visa-visale`. Soit une personne : mêmes 5 pièces que toi.
 
-## Infos pour la page de garde — `dossier/profil.txt`
+## Infos pour la page de garde — `ma-recherche/dossier/profil.txt`
 
 Remplis-le toi-même (nom, situation, revenus, date d'arrivée souhaitée). Je ne l'invente pas.
 
